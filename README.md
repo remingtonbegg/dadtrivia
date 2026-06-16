@@ -41,8 +41,10 @@ together, host the files somewhere public. **GitHub Pages** is free and easy:
 
 Then:
 
-1. **Set up Firebase once** on the launcher page (`index.html`) — paste your
-   Realtime Database URL. It's saved in the browser and shared by both games.
+1. **Firebase works out of the box** — a shared Realtime Database is built in,
+   so you can host and play immediately. To use your own instead, paste its URL
+   on the launcher page (`index.html`); it's saved in the browser and shared by
+   both games.
    - Create a project at <https://console.firebase.google.com> (skip Analytics).
    - Add a **Realtime Database** and start it in **test mode**.
    - Copy the database URL (`https://your-project-default-rtdb.firebaseio.com`).

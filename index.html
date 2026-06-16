@@ -84,6 +84,7 @@
 
 <script>
   const FB_URL_KEY = 'dadtrivia_fb_url';
+  const DEFAULT_FB_URL = 'https://dad-trivia-default-rtdb.firebaseio.com';
   const input = document.getElementById('fb-url');
   const status = document.getElementById('fb-status');
 
@@ -102,7 +103,8 @@
   window.addEventListener('DOMContentLoaded', () => {
     let saved = '';
     try { saved = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {}
-    if (saved) input.value = saved;
+    if (!saved) { saved = DEFAULT_FB_URL; try { localStorage.setItem(FB_URL_KEY, saved); } catch(e) {} }
+    input.value = saved;
     render(saved);
   });
 </script>

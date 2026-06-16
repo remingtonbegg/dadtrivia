@@ -403,6 +403,7 @@ let latestPlayers = {};           // last-known players snapshot (for the player
 let playersListenerAttached = false;
 const awardedQs = {};             // guards against double-awarding points on re-reveal
 const FB_URL_KEY = 'dadtrivia_fb_url';
+const DEFAULT_FB_URL = 'https://dad-trivia-default-rtdb.firebaseio.com';
 
 // ══════════════════════════════════════════
 //  FIREBASE
@@ -720,9 +721,10 @@ async function joinGame() {
   err.style.display='none';
   if(!pin||pin.length<4){ err.textContent='Please enter a valid PIN.'; err.style.display=''; return; }
   if(!name){ err.textContent='Please enter your name.'; err.style.display=''; return; }
-  // Resolve the Firebase URL: join link → saved value → prompt as last resort.
+  // Resolve the Firebase URL: join link → saved value → built-in default → prompt.
   let dbUrl = fbUrl;
   if(!dbUrl){ try { dbUrl = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {} }
+  if(!dbUrl){ dbUrl = DEFAULT_FB_URL; }
   if(!dbUrl){ dbUrl = prompt('Enter the Firebase database URL (ask your host):\n\nhttps://your-project-default-rtdb.firebaseio.com') || ''; }
   if(!dbUrl||!dbUrl.includes('firebaseio.com')){ err.textContent='Invalid Firebase URL.'; err.style.display=''; return; }
   if(!initFirebase(dbUrl)){ err.textContent='Could not connect.'; err.style.display=''; return; }
@@ -914,6 +916,7 @@ function parseJoinHash() {
 window.addEventListener('DOMContentLoaded', () => {
   let savedUrl = '';
   try { savedUrl = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {}
+  if (!savedUrl) savedUrl = DEFAULT_FB_URL;   // works out of the box; override anytime
 
   const join = parseJoinHash();
   if (join) {
