@@ -397,13 +397,20 @@ let isHost = false, myPlayerName = null, myPlayerKey = null;
 let currentQIndex = 0, firebaseApp = null, firebaseReady = false;
 let ptsCorrect = 10, ptsBonus = 5;
 let answerRevealed = false;
+let fbUrl = null;                 // active Firebase database URL
+let hasAnswered = false;          // whether I've answered the current question
+let latestPlayers = {};           // last-known players snapshot (for the player leaderboard)
+let playersListenerAttached = false;
+const awardedQs = {};             // guards against double-awarding points on re-reveal
+const FB_URL_KEY = 'dadtrivia_fb_url';
+const DEFAULT_FB_URL = 'https://dad-trivia-default-rtdb.firebaseio.com';
 
 // ══════════════════════════════════════════
 //  FIREBASE
 // ══════════════════════════════════════════
 function initFirebase(url) {
   if (firebaseApp) { try { firebaseApp.delete(); } catch(e) {} }
-  try { firebaseApp = firebase.initializeApp({ databaseURL: url }, 'dadfacts-' + Date.now()); db = firebase.database(firebaseApp); return true; }
+  try { firebaseApp = firebase.initializeApp({ databaseURL: url }, 'dadfacts-' + Date.now()); db = firebase.database(firebaseApp); fbUrl = url; return true; }
   catch(e) { return false; }
 }
 
@@ -421,7 +428,7 @@ function testFirebase() {
     const r = db.ref('.info/connected');
     r.on('value', snap => {
       r.off();
-      if (snap.val()) { status.className='firebase-status ok'; status.textContent='✅ Connected — ready!'; firebaseReady=true; launchBtn.disabled=false; }
+      if (snap.val()) { status.className='firebase-status ok'; status.textContent='✅ Connected — ready!'; firebaseReady=true; launchBtn.disabled=false; try { localStorage.setItem(FB_URL_KEY, url); } catch(e) {} }
       else { status.className='firebase-status err'; status.textContent='❌ Could not connect'; }
     });
     setTimeout(() => { if(!firebaseReady){ status.className='firebase-status err'; status.textContent='❌ Timed out. Check URL & database rules.'; } }, 6000);
@@ -517,11 +524,24 @@ async function launchLobby() {
 // ══════════════════════════════════════════
 //  HOST LOBBY
 // ══════════════════════════════════════════
+function buildJoinLink() {
+  const base = location.origin + location.pathname;
+  return base + '#join=' + encodeURIComponent(gamePin) + '&db=' + encodeURIComponent(fbUrl || '');
+}
+
+function copyJoinLink() {
+  const link = buildJoinLink();
+  const done = () => { const b = document.getElementById('copy-link-btn'); if (b) { b.textContent = '✅ Copied!'; setTimeout(() => { b.textContent = '📋 Copy join link'; }, 1800); } };
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(link).then(done).catch(() => prompt('Copy this join link:', link)); }
+  else { prompt('Copy this join link:', link); }
+}
+
 function renderHostLobby() {
   document.getElementById('host-main').innerHTML = `
     <div class="lobby-card">
-      <p style="font-size:14px;color:var(--gray-400);margin-bottom:4px">Share this link + PIN with your team. They open the game file and click <strong>Join a game</strong>.</p>
+      <p style="font-size:14px;color:var(--gray-400);margin-bottom:4px">Send your team the join link below — it drops them straight into this game. Or have them open the game and enter the PIN.</p>
       <div class="lobby-pin">${gamePin}</div>
+      <button class="btn btn-secondary" id="copy-link-btn" style="margin:0 auto 1rem;" onclick="copyJoinLink()">📋 Copy join link</button>
       <p style="font-size:13px;color:var(--gray-400)">Players in lobby:</p>
       <div class="player-chips" id="lobby-chips"><p style="font-size:13px;color:var(--gray-400);margin-top:8px">Waiting for players…</p></div>
     </div>
@@ -597,16 +617,19 @@ function hostRevealAnswer() {
   document.getElementById('reveal-btn').style.display='none';
   if(q.fact){ const fb=document.getElementById('fact-box'); fb.textContent='💡 '+q.fact; fb.style.display=''; }
   gameRef.update({ answerRevealed:true, correctAnswer: q.correct });
-  // Award points with speed bonus
+  // Award points with speed bonus — only once per question
   gameRef.child('answers/'+currentQIndex).once('value', snap => {
     const ans = snap.val()||{};
-    const correct = Object.entries(ans).filter(([k,v])=>v.choice===q.correct).sort((a,b)=>a[1].ts-b[1].ts);
-    const updates={};
-    correct.forEach(([key,v],rank)=>{
-      const bonus = Math.max(0, ptsBonus - rank);
-      updates['players/'+key+'/pts'] = firebase.database.ServerValue.increment(ptsCorrect + bonus);
-    });
-    if(Object.keys(updates).length) gameRef.update(updates);
+    if(!awardedQs[currentQIndex]){
+      awardedQs[currentQIndex] = true;
+      const correct = Object.entries(ans).filter(([k,v])=>v.choice===q.correct).sort((a,b)=>a[1].ts-b[1].ts);
+      const updates={};
+      correct.forEach(([key,v],rank)=>{
+        const bonus = Math.max(0, ptsBonus - rank);
+        updates['players/'+key+'/pts'] = firebase.database.ServerValue.increment(ptsCorrect + bonus);
+      });
+      if(Object.keys(updates).length) gameRef.update(updates);
+    }
     renderAnswersTally(ans, true, q.correct);
   });
 }
@@ -698,9 +721,14 @@ async function joinGame() {
   err.style.display='none';
   if(!pin||pin.length<4){ err.textContent='Please enter a valid PIN.'; err.style.display=''; return; }
   if(!name){ err.textContent='Please enter your name.'; err.style.display=''; return; }
-  const dbUrl=prompt('Enter the Firebase database URL:\n\nhttps://your-project-default-rtdb.firebaseio.com');
+  // Resolve the Firebase URL: join link → saved value → built-in default → prompt.
+  let dbUrl = fbUrl;
+  if(!dbUrl){ try { dbUrl = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {} }
+  if(!dbUrl){ dbUrl = DEFAULT_FB_URL; }
+  if(!dbUrl){ dbUrl = prompt('Enter the Firebase database URL (ask your host):\n\nhttps://your-project-default-rtdb.firebaseio.com') || ''; }
   if(!dbUrl||!dbUrl.includes('firebaseio.com')){ err.textContent='Invalid Firebase URL.'; err.style.display=''; return; }
   if(!initFirebase(dbUrl)){ err.textContent='Could not connect.'; err.style.display=''; return; }
+  try { localStorage.setItem(FB_URL_KEY, dbUrl); } catch(e) {}
   gameRef=db.ref('games/'+pin);
   const snap=await gameRef.once('value');
   if(!snap.exists()){ err.textContent='Game not found. Check the PIN.'; err.style.display=''; return; }
@@ -720,7 +748,14 @@ async function joinGame() {
 // ══════════════════════════════════════════
 function listenAsPlayer(initialGame) {
   let lastQ=initialGame.currentQ;
-  let hasAnswered=false;
+  hasAnswered=false;
+
+  // Attach the leaderboard listener once (not on every question render).
+  if(!playersListenerAttached){
+    playersListenerAttached = true;
+    gameRef.child('players').on('value', snap=>{ latestPlayers = snap.val()||{}; renderPlayerLeaderboard(); });
+  }
+
   if(initialGame.state==='lobby') renderPlayerWaiting();
   else if(initialGame.state==='playing') renderPlayerQuestion(initialGame, lastQ, hasAnswered);
 
@@ -730,8 +765,21 @@ function listenAsPlayer(initialGame) {
     if(game.state==='gameover'){ renderPlayerGameover(game); return; }
     if(game.state==='lobby'){ renderPlayerWaiting(); return; }
     if(game.currentQ!==lastQ){ lastQ=game.currentQ; hasAnswered=false; }
-    renderPlayerQuestion(game, lastQ, hasAnswered, s=>{ hasAnswered=s; });
+    renderPlayerQuestion(game, lastQ, hasAnswered);
   });
+}
+
+function renderPlayerLeaderboard() {
+  const lb=document.getElementById('player-lb');
+  if(!lb) return;
+  const sorted=Object.values(latestPlayers).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  lb.innerHTML=`<h3>Leaderboard</h3>`+sorted.map((p,i)=>`
+    <div class="lb-row">
+      <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+      <span class="lb-name" style="${p.name===myPlayerName?'font-weight:700;color:var(--gold-dark)':''}">${p.name}${p.name===myPlayerName?' (you)':''}</span>
+      <span class="lb-pts" style="${p.name===myPlayerName?'color:var(--gold);':''}">${p.pts||0}</span>
+    </div>
+  `).join('');
 }
 
 function renderPlayerWaiting() {
@@ -793,22 +841,12 @@ function renderPlayerQuestion(game, qIdx, answered, onAnswer) {
     });
   }
 
-  // Live leaderboard
-  gameRef.child('players').on('value', snap=>{
-    const players=snap.val()||{};
-    const sorted=Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
-    const lb=document.getElementById('player-lb');
-    if(lb) lb.innerHTML=`<h3>Leaderboard</h3>`+sorted.map((p,i)=>`
-      <div class="lb-row">
-        <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-        <span class="lb-name" style="${p.name===myPlayerName?'font-weight:700;color:var(--gold-dark)':''}">${p.name}${p.name===myPlayerName?' (you)':''}</span>
-        <span class="lb-pts" style="${p.name===myPlayerName?'color:var(--gold);':''}">${p.pts||0}</span>
-      </div>
-    `).join('');
-  });
+  // Live leaderboard (data comes from the single players listener in listenAsPlayer)
+  renderPlayerLeaderboard();
 }
 
 async function submitChoice(letter, qIdx) {
+  hasAnswered=true;
   const btn=document.getElementById('popt-'+letter);
   if(btn) btn.classList.add('selected');
   document.querySelectorAll('.player-option').forEach(b=>b.disabled=true);
@@ -863,6 +901,35 @@ function renderPlayerGameover(game) {
     </div>
   `;
 }
+
+// ══════════════════════════════════════════
+//  INIT — restore saved URL & handle join links
+// ══════════════════════════════════════════
+function parseJoinHash() {
+  const h = location.hash.replace(/^#/, '');
+  if (!h) return null;
+  const params = new URLSearchParams(h);
+  if (!params.has('join')) return null;
+  return { pin: (params.get('join') || '').toUpperCase(), db: params.get('db') || '' };
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  let savedUrl = '';
+  try { savedUrl = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {}
+  if (!savedUrl) savedUrl = DEFAULT_FB_URL;   // works out of the box; override anytime
+
+  const join = parseJoinHash();
+  if (join) {
+    if (join.db) { savedUrl = join.db; try { localStorage.setItem(FB_URL_KEY, join.db); } catch(e) {} }
+    fbUrl = savedUrl || fbUrl;
+    document.getElementById('join-pin').value = join.pin;
+    document.getElementById('join-name').focus();
+  }
+
+  // Pre-fill the host's Firebase URL field so it only has to be entered once.
+  const input = document.getElementById('firebase-url-input');
+  if (input && savedUrl) { input.value = savedUrl; testFirebase(); }
+});
 </script>
 </body>
 </html>
