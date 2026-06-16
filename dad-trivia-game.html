@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guess the Dad 👨 Trivia</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fraunces:wght@700&display=swap');
+
+  :root {
+    --green: #1D9E75;
+    --green-dark: #085041;
+    --green-light: #E1F5EE;
+    --amber: #BA7517;
+    --amber-light: #FAEEDA;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --gray-50: #F8F8F7;
+    --gray-100: #F0EFE9;
+    --gray-200: #D3D1C7;
+    --gray-400: #888780;
+    --gray-700: #444441;
+    --gray-900: #2C2C2A;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    min-height: 100vh;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── LANDING ── */
+  #screen-landing {
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: linear-gradient(160deg, #E1F5EE 0%, #F8F8F7 50%);
+  }
+  .landing-card {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    padding: 2.5rem 2rem;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+  }
+  .landing-emoji { font-size: 48px; margin-bottom: 1rem; }
+  .landing-title { font-family: 'Fraunces', serif; font-size: 28px; color: var(--gray-900); margin-bottom: 6px; }
+  .landing-sub { font-size: 14px; color: var(--gray-400); margin-bottom: 2rem; line-height: 1.5; }
+  .landing-sep { display: flex; align-items: center; gap: 12px; margin: 1.5rem 0; }
+  .landing-sep span { font-size: 12px; color: var(--gray-400); white-space: nowrap; }
+  .landing-sep::before, .landing-sep::after { content: ''; flex: 1; height: 1px; background: var(--gray-200); }
+  .pin-input { width: 100%; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 22px; font-family: 'Inter', sans-serif; font-weight: 600; text-align: center; letter-spacing: 6px; color: var(--gray-900); outline: none; transition: border-color 0.15s; }
+  .pin-input:focus { border-color: var(--green); }
+  .name-input { width: 100%; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 16px; font-family: 'Inter', sans-serif; color: var(--gray-900); outline: none; transition: border-color 0.15s; margin-top: 10px; }
+  .name-input:focus { border-color: var(--green); }
+
+  /* ── SETUP (HOST) ── */
+  #screen-setup { background: var(--gray-50); }
+  .setup-header { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+  .setup-header h1 { font-family: 'Fraunces', serif; font-size: 20px; }
+  .setup-body { flex: 1; padding: 1.5rem; max-width: 760px; margin: 0 auto; width: 100%; }
+  .setup-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--gray-200); margin-bottom: 1.5rem; }
+  .setup-tab { font-size: 14px; padding: 8px 16px; border: none; background: none; cursor: pointer; color: var(--gray-400); border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; }
+  .setup-tab.active { color: var(--gray-900); border-bottom-color: var(--green); font-weight: 500; }
+  .q-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
+  .q-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 14px 16px; }
+  .q-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .q-num { font-size: 12px; font-weight: 600; background: var(--green-light); color: var(--green-dark); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .q-lbl { font-size: 11px; color: var(--gray-400); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; font-weight: 500; }
+  .q-card textarea, .q-card input[type=text] { width: 100%; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 14px; font-family: inherit; color: var(--gray-900); background: var(--gray-50); resize: none; outline: none; }
+  .q-card textarea:focus, .q-card input[type=text]:focus { border-color: var(--green); }
+  .q-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .del-btn { margin-left: auto; background: none; border: none; cursor: pointer; color: var(--gray-400); font-size: 18px; padding: 2px 4px; line-height: 1; }
+  .del-btn:hover { color: var(--red); }
+  .add-btn { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; background: none; border: 1.5px dashed var(--gray-200); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; color: var(--gray-400); width: 100%; font-family: inherit; }
+  .add-btn:hover { background: var(--gray-100); }
+
+  /* ── FIREBASE SETUP ── */
+  .firebase-panel { background: var(--blue-light); border: 1px solid #B5D4F4; border-radius: var(--radius); padding: 16px; margin-bottom: 1.5rem; }
+  .firebase-panel h3 { font-size: 14px; font-weight: 600; color: var(--blue); margin-bottom: 8px; }
+  .firebase-panel p { font-size: 13px; color: #185FA5; line-height: 1.6; margin-bottom: 8px; }
+  .firebase-panel ol { font-size: 13px; color: #185FA5; line-height: 1.8; padding-left: 18px; margin-bottom: 10px; }
+  .firebase-panel input { width: 100%; border: 1px solid #B5D4F4; border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; font-family: 'Inter', monospace; color: var(--gray-900); background: #fff; outline: none; margin-top: 4px; }
+  .firebase-panel input:focus { border-color: var(--blue); }
+  .firebase-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; margin-top: 8px; }
+  .firebase-status.ok { background: var(--green-light); color: var(--green-dark); }
+  .firebase-status.err { background: var(--red-light); color: var(--red); }
+  .firebase-status.pending { background: var(--amber-light); color: var(--amber); }
+
+  /* ── BUTTONS ── */
+  .btn { font-family: inherit; font-size: 14px; padding: 10px 20px; border-radius: var(--radius-sm); cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; transition: opacity .15s, transform .1s; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover { background: var(--green-dark); }
+  .btn-secondary { background: #fff; color: var(--gray-900); border: 1px solid var(--gray-200); }
+  .btn-secondary:hover { background: var(--gray-100); }
+  .btn-danger { background: var(--red-light); color: var(--red); }
+  .btn-danger:hover { background: #F7C1C1; }
+  .btn:disabled { opacity: .4; cursor: default; pointer-events: none; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── HOST GAME ── */
+  #screen-host { background: var(--gray-50); }
+  .host-header { background: #fff; border-bottom: 1px solid var(--gray-200); padding: .75rem 1.25rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .host-header h1 { font-family: 'Fraunces', serif; font-size: 18px; flex: 1; }
+  .game-pin-badge { background: var(--green-light); color: var(--green-dark); font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 20px; letter-spacing: .04em; }
+  .player-count-badge { background: var(--gray-100); color: var(--gray-700); font-size: 13px; font-weight: 500; padding: 4px 12px; border-radius: 20px; }
+  .host-body { flex: 1; display: grid; grid-template-columns: 1fr 300px; gap: 0; overflow: hidden; }
+  .host-main { padding: 1.25rem; overflow-y: auto; }
+  .host-sidebar { border-left: 1px solid var(--gray-200); background: #fff; overflow-y: auto; display: flex; flex-direction: column; }
+  .sidebar-section { padding: 1rem; border-bottom: 1px solid var(--gray-200); }
+  .sidebar-section:last-child { border-bottom: none; flex: 1; }
+  .sidebar-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-400); margin-bottom: 10px; }
+  .q-display-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 1.5rem; text-align: center; margin-bottom: 1rem; }
+  .q-display-card .q-counter { font-size: 12px; color: var(--gray-400); margin-bottom: 10px; }
+  .q-display-card .q-text { font-size: 18px; font-weight: 500; line-height: 1.5; color: var(--gray-900); margin-bottom: 1.25rem; white-space: pre-line; }
+  .reveal-answer-box { background: var(--green-light); border-radius: var(--radius-sm); padding: 14px 20px; font-size: 18px; font-weight: 600; color: var(--green-dark); display: none; margin-bottom: 1rem; }
+  .reveal-answer-box.visible { display: block; }
+  .hint-reveal-box { background: var(--amber-light); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 14px; color: var(--amber); display: none; margin-bottom: 12px; text-align: left; }
+  .hint-reveal-box.visible { display: block; }
+  .timer-bar-wrap { height: 6px; background: var(--gray-100); border-radius: 3px; overflow: hidden; margin-bottom: 1rem; }
+  .timer-bar-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 1s linear, background 0.3s; }
+  .progress-bar { height: 4px; background: var(--gray-100); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 2px; }
+  .q-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; }
+
+  /* Answers list */
+  .answers-list { display: flex; flex-direction: column; gap: 6px; }
+  .answer-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--gray-50); border: 1px solid var(--gray-200); }
+  .answer-item .a-name { font-size: 13px; font-weight: 500; flex: 1; color: var(--gray-900); }
+  .answer-item .a-guess { font-size: 13px; color: var(--gray-700); flex: 1; text-align: right; font-style: italic; }
+  .answer-item.correct { background: var(--green-light); border-color: #9FE1CB; }
+  .answer-item.correct .a-guess { color: var(--green-dark); font-style: normal; font-weight: 500; }
+  .answer-item.wrong { background: var(--red-light); border-color: #F7C1C1; }
+  .answer-item.wrong .a-guess { color: var(--red); }
+  .no-answers { font-size: 13px; color: var(--gray-400); text-align: center; padding: 20px; }
+
+  /* Leaderboard */
+  .lb-row { display: flex; align-items: center; gap: 8px; padding: 7px 6px; border-radius: var(--radius-sm); }
+  .lb-row:nth-child(even) { background: var(--gray-50); }
+  .lb-rank { font-size: 12px; color: var(--gray-400); min-width: 22px; text-align: center; }
+  .lb-name { font-size: 13px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-pts { font-size: 14px; font-weight: 600; color: var(--green-dark); }
+  .lb-adj { display: flex; gap: 3px; }
+  .lb-adj button { background: none; border: 1px solid var(--gray-200); border-radius: 4px; width: 20px; height: 20px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; color: var(--gray-400); font-family: inherit; padding: 0; }
+  .lb-adj button:hover { background: var(--gray-100); }
+
+  /* ── PLAYER GAME ── */
+  #screen-player { background: var(--gray-50); }
+  .player-header { background: #fff; border-bottom: 1px solid var(--gray-200); padding: .75rem 1.25rem; display: flex; align-items: center; justify-content: space-between; }
+  .player-header h1 { font-family: 'Fraunces', serif; font-size: 18px; }
+  .player-name-badge { font-size: 13px; color: var(--gray-400); font-weight: 500; }
+  .player-body { flex: 1; padding: 1.25rem; max-width: 540px; margin: 0 auto; width: 100%; overflow-y: auto; }
+  .waiting-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 2rem; text-align: center; }
+  .waiting-card .big-emoji { font-size: 48px; margin-bottom: 1rem; }
+  .waiting-card h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .waiting-card p { font-size: 14px; color: var(--gray-400); }
+  .player-q-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+  .player-q-text { font-size: 17px; font-weight: 500; line-height: 1.6; color: var(--gray-900); margin-bottom: 1.25rem; white-space: pre-line; }
+  .player-hint-box { background: var(--amber-light); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 14px; color: var(--amber); margin-bottom: 1rem; display: none; }
+  .player-hint-box.visible { display: block; }
+  .guess-wrap { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .guess-input { flex: 1; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 16px; font-family: inherit; color: var(--gray-900); outline: none; background: #fff; }
+  .guess-input:focus { border-color: var(--green); }
+  .guess-input:disabled { background: var(--gray-100); color: var(--gray-400); }
+  .submitted-msg { background: var(--green-light); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--green-dark); text-align: center; margin-bottom: 1rem; display: none; }
+  .submitted-msg.visible { display: block; }
+  .player-answer-reveal { background: var(--green-light); border-radius: var(--radius-sm); padding: 14px; text-align: center; font-size: 16px; font-weight: 600; color: var(--green-dark); display: none; margin-bottom: 1rem; }
+  .player-answer-reveal.visible { display: block; }
+  .player-result-msg { text-align: center; font-size: 14px; font-weight: 500; margin-bottom: 1rem; padding: 10px; border-radius: var(--radius-sm); display: none; }
+  .player-result-msg.correct { background: var(--green-light); color: var(--green-dark); display: block; }
+  .player-result-msg.wrong { background: var(--red-light); color: var(--red); display: block; }
+  .player-lb { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 1rem; }
+  .player-lb h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-400); margin-bottom: 10px; }
+  .player-timer-bar { height: 5px; background: var(--gray-100); border-radius: 3px; overflow: hidden; margin-bottom: 1rem; }
+  .player-timer-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 1s linear, background 0.3s; }
+
+  /* ── LOBBY ── */
+  .lobby-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+  .lobby-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .lobby-card .pin-display { font-size: 42px; font-weight: 700; font-family: 'Fraunces', serif; color: var(--green-dark); letter-spacing: 8px; margin: 12px 0; }
+  .lobby-card .pin-sub { font-size: 13px; color: var(--gray-400); }
+  .player-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; }
+  .player-chip { background: var(--green-light); color: var(--green-dark); font-size: 13px; font-weight: 500; padding: 5px 12px; border-radius: 20px; }
+
+  /* ── GAME OVER ── */
+  .gameover-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 2rem; text-align: center; margin-bottom: 1rem; }
+  .gameover-card .trophy { font-size: 56px; margin-bottom: .5rem; }
+  .gameover-card h2 { font-family: 'Fraunces', serif; font-size: 26px; margin-bottom: 4px; }
+  .gameover-card .winner-pts { font-size: 14px; color: var(--gray-400); margin-bottom: 1.5rem; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .host-body { grid-template-columns: 1fr; }
+    .host-sidebar { border-left: none; border-top: 1px solid var(--gray-200); }
+    .q-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="screen-landing" class="screen active">
+  <div class="landing-card">
+    <div class="landing-emoji">👨</div>
+    <h1 class="landing-title">Guess the Dad</h1>
+    <p class="landing-sub">Read the joke. Guess which dad told it. Win glory.</p>
+
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;padding:13px;" onclick="showHostSetup()">
+      🎮 Host a game
+    </button>
+
+    <div class="landing-sep"><span>or join as a player</span></div>
+
+    <input class="pin-input" id="join-pin" type="text" maxlength="6" placeholder="ENTER PIN" oninput="this.value=this.value.toUpperCase()">
+    <input class="name-input" id="join-name" type="text" maxlength="20" placeholder="Your name">
+    <button class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:10px;" onclick="joinGame()">Join game →</button>
+    <p id="join-error" style="font-size:13px;color:var(--red);margin-top:8px;display:none;"></p>
+  </div>
+</div>
+
+<!-- HOST SETUP -->
+<div id="screen-setup" class="screen">
+  <div class="setup-header">
+    <h1>👨 Guess the Dad — Setup</h1>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showScreen('screen-landing')">← Back</button>
+      <button class="btn btn-primary" id="launch-btn" onclick="launchLobby()" disabled>Launch lobby →</button>
+    </div>
+  </div>
+  <div class="setup-body">
+
+    <div class="firebase-panel" id="firebase-panel">
+      <h3>🔥 Firebase setup (one time)</h3>
+      <p>This game needs a free Firebase project for real-time sync. Takes about 2 minutes:</p>
+      <ol>
+        <li>Go to <strong>console.firebase.google.com</strong> → Create project (skip Analytics)</li>
+        <li>Click <strong>Realtime Database</strong> in the left menu → Create database → Start in <strong>test mode</strong> → Enable</li>
+        <li>Copy your database URL (looks like <code>https://your-project-default-rtdb.firebaseio.com</code>)</li>
+        <li>Paste it below:</li>
+      </ol>
+      <input type="text" id="firebase-url-input" placeholder="https://your-project-default-rtdb.firebaseio.com" oninput="testFirebase()">
+      <div id="firebase-status" class="firebase-status pending">⏳ Waiting for URL</div>
+    </div>
+
+    <div class="setup-tabs">
+      <button class="setup-tab active" onclick="setupTab('questions')">Questions (7)</button>
+      <button class="setup-tab" onclick="setupTab('settings')">Settings</button>
+    </div>
+
+    <div id="setup-questions">
+      <div class="q-list" id="q-list"></div>
+      <button class="add-btn" onclick="addQuestion()" id="add-q-btn">+ Add question</button>
+    </div>
+
+    <div id="setup-settings" style="display:none">
+      <div class="q-card" style="margin-bottom:10px">
+        <p class="q-lbl">Points per correct answer</p>
+        <input type="number" id="pts-per-q" min="1" max="100" value="1" style="width:80px;margin-top:4px;">
+      </div>
+      <div class="q-card" style="margin-bottom:10px">
+        <p class="q-lbl">Timer per question (seconds, 0 = no timer)</p>
+        <input type="number" id="timer-secs" min="0" max="300" value="60" style="width:80px;margin-top:4px;">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HOST LOBBY / GAME -->
+<div id="screen-host" class="screen">
+  <div class="host-header">
+    <h1>👨 Guess the Dad</h1>
+    <span class="game-pin-badge" id="host-pin-badge">PIN: ——</span>
+    <span class="player-count-badge" id="host-player-count">0 players</span>
+    <div class="btn-row" style="margin-left:auto">
+      <button class="btn btn-secondary btn-danger" onclick="endGame()">End game</button>
+    </div>
+  </div>
+  <div class="host-body">
+    <div class="host-main" id="host-main">
+      <!-- lobby or question content -->
+    </div>
+    <div class="host-sidebar">
+      <div class="sidebar-section">
+        <p class="sidebar-title">Leaderboard</p>
+        <div id="host-leaderboard"><p class="no-answers">No players yet</p></div>
+      </div>
+      <div class="sidebar-section">
+        <p class="sidebar-title">Answers this round</p>
+        <div id="host-answers"><p class="no-answers">Waiting for answers…</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PLAYER GAME -->
+<div id="screen-player" class="screen">
+  <div class="player-header">
+    <h1>👨 Guess the Dad</h1>
+    <span class="player-name-badge" id="player-name-display"></span>
+  </div>
+  <div class="player-body" id="player-body">
+    <div class="waiting-card">
+      <div class="big-emoji">⏳</div>
+      <h2>Joining game…</h2>
+      <p>Hang tight while we connect you.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+// ══════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════
+let questions = [
+  { q: "Guess the dad behind this joke.\n\nWhat's cheese that's not yours?\n\nNACHO CHEESE", a: "Kevin", hint: "This dad DIY'd his porch into the office he works out of." },
+  { q: "Guess the dad behind this joke.\n\nTwo fish are in a tank. One turns to the other and says: Do you even know how to drive this thing?", a: "Christian", hint: "This dad was born in Tennessee." },
+  { q: "Guess the dad behind this joke.\n\nWhat's a pirate's favorite letter... SEEEAAAAAA (c) because they know ARR.", a: "Nick", hint: "This dad pooped his pants while running down the street with a kid on his shoulders." },
+  { q: "Guess the dad behind this joke.\n\nWhat does a baby computer call his father?\n\nData.", a: "Carter", hint: "This dad is very good friends with Courteney Cox's (Monica from Friends) nephew." },
+  { q: "Guess the dad behind this joke.\n\nI have a running bit with my wife where, if we're out in public and there's a song playing during a lull in conversation, I will tell her, \"This is my favorite song.\" It doesn't matter what the song is. It's not a very funny joke, but I've been doing it so long that it became an inside joke in its own right.", a: "Graham", hint: "This dad did a two-year acting program and is a trained Meisner actor." },
+  { q: "Guess the dad behind this joke.\n\nWhat do you call a fish with no eyes?\n\nFshhh.", a: "Brad", hint: "This dad has a poker dealer's license in the state of Montana." },
+  { q: "Guess the dad behind this joke.\n\nIf two vegetarians get in an argument, is it still called beef?", a: "Remington", hint: "This dad was \"boatschooled\" and learned math on the compass (navigation). He also learned how to use a sextant to navigate with the stars at age 11." },
+];
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let db = null;
+let gamePin = null;
+let gameRef = null;
+let isHost = false;
+let myPlayerName = null;
+let myPlayerKey = null;
+let currentQIndex = 0;
+let timerInterval = null;
+let timerSecs = 60;
+let ptsPerQ = 1;
+let answerRevealed = false;
+let firebaseReady = false;
+let unsubscribers = [];
+
+// ══════════════════════════════════════════
+//  FIREBASE INIT
+// ══════════════════════════════════════════
+let firebaseApp = null;
+
+function initFirebase(url) {
+  if (firebaseApp) {
+    try { firebaseApp.delete(); } catch(e) {}
+  }
+  try {
+    firebaseApp = firebase.initializeApp({ databaseURL: url }, 'trivia-' + Date.now());
+    db = firebase.database(firebaseApp);
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+let testTimeout = null;
+function testFirebase() {
+  const url = document.getElementById('firebase-url-input').value.trim();
+  const status = document.getElementById('firebase-status');
+  const launchBtn = document.getElementById('launch-btn');
+  firebaseReady = false;
+  launchBtn.disabled = true;
+  if (!url || !url.includes('firebaseio.com')) {
+    status.className = 'firebase-status pending';
+    status.textContent = '⏳ Waiting for valid URL';
+    return;
+  }
+  status.className = 'firebase-status pending';
+  status.textContent = '⏳ Testing connection…';
+  clearTimeout(testTimeout);
+  testTimeout = setTimeout(() => {
+    if (!initFirebase(url)) {
+      status.className = 'firebase-status err';
+      status.textContent = '❌ Invalid URL format';
+      return;
+    }
+    const testRef = db.ref('.info/connected');
+    const unsub = testRef.on('value', snap => {
+      testRef.off('value', unsub);
+      if (snap.val() === true) {
+        status.className = 'firebase-status ok';
+        status.textContent = '✅ Connected — ready to launch!';
+        firebaseReady = true;
+        launchBtn.disabled = false;
+      } else {
+        status.className = 'firebase-status err';
+        status.textContent = '❌ Could not connect. Check your URL.';
+      }
+    });
+    setTimeout(() => {
+      if (!firebaseReady) {
+        status.className = 'firebase-status err';
+        status.textContent = '❌ Timed out. Check URL or database rules.';
+      }
+    }, 6000);
+  }, 600);
+}
+
+// ══════════════════════════════════════════
+//  SCREENS
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showHostSetup() {
+  showScreen('screen-setup');
+  renderQList();
+}
+
+// ══════════════════════════════════════════
+//  SETUP TABS
+// ══════════════════════════════════════════
+function setupTab(name) {
+  document.querySelectorAll('.setup-tab').forEach((t,i) => t.classList.toggle('active', ['questions','settings'][i]===name));
+  document.getElementById('setup-questions').style.display = name==='questions'?'':'none';
+  document.getElementById('setup-settings').style.display = name==='settings'?'':'none';
+}
+
+// ══════════════════════════════════════════
+//  QUESTION EDITOR
+// ══════════════════════════════════════════
+function renderQList() {
+  const list = document.getElementById('q-list');
+  list.innerHTML = '';
+  questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'q-card';
+    card.innerHTML = `
+      <div class="q-hdr">
+        <span class="q-num">${i+1}</span>
+        <span style="font-size:13px;color:var(--gray-400);flex:1">Question ${i+1}</span>
+        <button class="del-btn" onclick="deleteQ(${i})" title="Delete">✕</button>
+      </div>
+      <div class="q-lbl">Joke / Question</div>
+      <textarea rows="4" oninput="questions[${i}].q=this.value">${q.q}</textarea>
+      <div class="q-row">
+        <div><div class="q-lbl">Answer (dad's name)</div><input type="text" value="${q.a}" oninput="questions[${i}].a=this.value"></div>
+        <div><div class="q-lbl">Hint (optional)</div><input type="text" value="${q.hint||''}" oninput="questions[${i}].hint=this.value"></div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+  document.querySelector('.setup-tab').textContent = `Questions (${questions.length})`;
+  document.getElementById('add-q-btn').style.display = questions.length >= 14 ? 'none' : '';
+}
+
+function deleteQ(i) { questions.splice(i,1); renderQList(); }
+function addQuestion() { if(questions.length<14){ questions.push({q:'',a:'',hint:''}); renderQList(); } }
+
+// ══════════════════════════════════════════
+//  GENERATE PIN
+// ══════════════════════════════════════════
+function genPin() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+// ══════════════════════════════════════════
+//  LAUNCH LOBBY (HOST)
+// ══════════════════════════════════════════
+async function launchLobby() {
+  if (!firebaseReady) { alert('Please connect Firebase first.'); return; }
+  timerSecs = parseInt(document.getElementById('timer-secs').value)||0;
+  ptsPerQ = parseInt(document.getElementById('pts-per-q').value)||1;
+
+  gamePin = genPin();
+  gameRef = db.ref('games/' + gamePin);
+
+  const gameData = {
+    state: 'lobby',
+    currentQ: -1,
+    answerRevealed: false,
+    hintRevealed: false,
+    questions: questions.map(q => ({ q: q.q, hint: q.hint||'' })),
+    answers: {},
+    players: {},
+    settings: { timerSecs, ptsPerQ },
+    createdAt: Date.now()
+  };
+  await gameRef.set(gameData);
+
+  // Clean up after 4 hours
+  setTimeout(() => { if(gameRef) gameRef.remove(); }, 4 * 60 * 60 * 1000);
+
+  isHost = true;
+  showScreen('screen-host');
+  document.getElementById('host-pin-badge').textContent = 'PIN: ' + gamePin;
+  renderHostLobby();
+  listenAsHost();
+}
+
+// ══════════════════════════════════════════
+//  HOST LOBBY RENDER
+// ══════════════════════════════════════════
+function renderHostLobby() {
+  const main = document.getElementById('host-main');
+  main.innerHTML = `
+    <div class="lobby-card">
+      <h2>Game lobby</h2>
+      <p style="font-size:14px;color:var(--gray-400);margin-bottom:4px">Share this PIN with your team. They open this file in a browser and click <strong>Join a game</strong>.</p>
+      <div class="pin-display">${gamePin}</div>
+      <p class="pin-sub">Players joined:</p>
+      <div class="player-chips" id="lobby-chips"><p style="font-size:13px;color:var(--gray-400);margin-top:8px">Waiting for players…</p></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-primary" onclick="startGame()" id="start-game-btn">Start game →</button>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════
+//  HOST LISTEN
+// ══════════════════════════════════════════
+function listenAsHost() {
+  unsubscribers.forEach(u => u());
+  unsubscribers = [];
+
+  const playersRef = gameRef.child('players');
+  playersRef.on('value', snap => {
+    const players = snap.val() || {};
+    const names = Object.values(players).map(p => p.name).filter(Boolean);
+    document.getElementById('host-player-count').textContent = names.length + ' player' + (names.length!==1?'s':'');
+    const chips = document.getElementById('lobby-chips');
+    if (chips) {
+      chips.innerHTML = names.length
+        ? names.map(n => `<span class="player-chip">${n}</span>`).join('')
+        : '<p style="font-size:13px;color:var(--gray-400);margin-top:8px">Waiting for players…</p>';
+    }
+    renderLeaderboard(players);
+  });
+
+  const answersRef = gameRef.child('answers');
+  answersRef.on('value', snap => {
+    const allAnswers = snap.val() || {};
+    const qAnswers = allAnswers[currentQIndex] || {};
+    renderAnswersList(qAnswers);
+  });
+
+  unsubscribers.push(() => playersRef.off());
+  unsubscribers.push(() => answersRef.off());
+}
+
+// ══════════════════════════════════════════
+//  START GAME
+// ══════════════════════════════════════════
+async function startGame() {
+  currentQIndex = 0;
+  answerRevealed = false;
+  await gameRef.update({ state: 'playing', currentQ: 0, answerRevealed: false, hintRevealed: false });
+  renderHostQuestion();
+  startHostTimer();
+}
+
+// ══════════════════════════════════════════
+//  HOST QUESTION RENDER
+// ══════════════════════════════════════════
+function renderHostQuestion() {
+  answerRevealed = false;
+  const q = questions[currentQIndex];
+  const pct = Math.round((currentQIndex / questions.length) * 100);
+  const main = document.getElementById('host-main');
+  main.innerHTML = `
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <p style="font-size:12px;color:var(--gray-400);text-align:right;margin-bottom:10px">${currentQIndex+1} of ${questions.length}</p>
+    ${timerSecs > 0 ? `<div class="timer-bar-wrap"><div class="timer-bar-fill" id="host-timer-bar" style="width:100%"></div></div><p id="host-timer-txt" style="font-size:12px;color:var(--gray-400);text-align:center;margin-bottom:10px">${timerSecs}s</p>` : ''}
+    <div class="q-display-card">
+      <p class="q-counter">Question ${currentQIndex+1} of ${questions.length}</p>
+      <p class="q-text">${q.q}</p>
+      ${q.hint ? `<div class="hint-reveal-box" id="hint-box">💡 ${q.hint}</div>` : ''}
+      <div class="reveal-answer-box" id="answer-box">👨 ${q.a}</div>
+      <div class="btn-row" style="justify-content:center;margin-top:1rem">
+        ${q.hint ? `<button class="btn btn-secondary" id="hint-btn" onclick="hostRevealHint()">Show hint</button>` : ''}
+        <button class="btn btn-secondary" id="reveal-btn" onclick="hostRevealAnswer()">Reveal answer</button>
+        <button class="btn btn-primary" id="award-btn" style="display:none" onclick="hostAwardPoints()">Award points →</button>
+      </div>
+    </div>
+    <div class="q-nav">
+      <button class="btn btn-secondary" onclick="hostPrevQ()" ${currentQIndex===0?'disabled':''}>← Previous</button>
+      <button class="btn btn-primary" onclick="hostNextQ()">${currentQIndex===questions.length-1?'Finish game':'Next question →'}</button>
+    </div>
+  `;
+}
+
+function hostRevealHint() {
+  document.getElementById('hint-box').classList.add('visible');
+  document.getElementById('hint-btn').style.display = 'none';
+  gameRef.update({ hintRevealed: true });
+}
+
+function hostRevealAnswer() {
+  answerRevealed = true;
+  clearInterval(timerInterval);
+  document.getElementById('answer-box').classList.add('visible');
+  document.getElementById('reveal-btn').style.display = 'none';
+  const hBtn = document.getElementById('hint-btn');
+  if(hBtn) hBtn.style.display = 'none';
+  document.getElementById('award-btn').style.display = '';
+  gameRef.update({ answerRevealed: true, answer: questions[currentQIndex].a });
+  // Mark answers correct/wrong
+  gameRef.child('answers/' + currentQIndex).once('value', snap => {
+    const qAnswers = snap.val() || {};
+    renderAnswersList(qAnswers, true);
+  });
+}
+
+function hostAwardPoints() {
+  // Auto-award based on case-insensitive match
+  gameRef.child('answers/' + currentQIndex).once('value', snap => {
+    const qAnswers = snap.val() || {};
+    const correctAnswer = questions[currentQIndex].a.trim().toLowerCase();
+    const updates = {};
+    Object.entries(qAnswers).forEach(([key, val]) => {
+      if (val.guess && val.guess.trim().toLowerCase() === correctAnswer) {
+        updates['players/' + key + '/pts'] = firebase.database.ServerValue.increment(ptsPerQ);
+      }
+    });
+    if (Object.keys(updates).length) {
+      gameRef.update(updates);
+    }
+  });
+  document.getElementById('award-btn').textContent = '✅ Points awarded!';
+  document.getElementById('award-btn').disabled = true;
+}
+
+function hostNextQ() {
+  clearInterval(timerInterval);
+  if (currentQIndex >= questions.length - 1) { hostGameOver(); return; }
+  currentQIndex++;
+  gameRef.update({ currentQ: currentQIndex, answerRevealed: false, hintRevealed: false, answer: null });
+  renderHostQuestion();
+  startHostTimer();
+}
+
+function hostPrevQ() {
+  clearInterval(timerInterval);
+  if (currentQIndex > 0) {
+    currentQIndex--;
+    gameRef.update({ currentQ: currentQIndex, answerRevealed: false, hintRevealed: false, answer: null });
+    renderHostQuestion();
+    startHostTimer();
+  }
+}
+
+function startHostTimer() {
+  clearInterval(timerInterval);
+  if (!timerSecs) return;
+  let left = timerSecs;
+  timerInterval = setInterval(() => {
+    left--;
+    const bar = document.getElementById('host-timer-bar');
+    const txt = document.getElementById('host-timer-txt');
+    if (bar) bar.style.width = Math.max(0, (left/timerSecs)*100) + '%';
+    if (bar) bar.style.background = left <= 10 ? '#E24B4A' : '#1D9E75';
+    if (txt) txt.textContent = left > 0 ? left + 's' : "Time's up!";
+    if (left <= 0) { clearInterval(timerInterval); if(!answerRevealed) hostRevealAnswer(); }
+  }, 1000);
+}
+
+// ══════════════════════════════════════════
+//  HOST LEADERBOARD
+// ══════════════════════════════════════════
+function renderLeaderboard(players) {
+  const lb = document.getElementById('host-leaderboard');
+  if (!lb) return;
+  const sorted = Object.entries(players).map(([k,v]) => ({key:k, name:v.name, pts:v.pts||0})).sort((a,b)=>b.pts-a.pts);
+  if (!sorted.length) { lb.innerHTML = '<p class="no-answers">No players yet</p>'; return; }
+  lb.innerHTML = sorted.map((p,i) => `
+    <div class="lb-row">
+      <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+      <span class="lb-name">${p.name}</span>
+      <div class="lb-adj">
+        <button onclick="adjustPts('${p.key}',1)">+</button>
+        <button onclick="adjustPts('${p.key}',-1)">−</button>
+      </div>
+      <span class="lb-pts">${p.pts}</span>
+    </div>
+  `).join('');
+}
+
+function adjustPts(key, delta) {
+  gameRef.child('players/' + key + '/pts').transaction(cur => Math.max(0, (cur||0) + delta * ptsPerQ));
+}
+
+// ══════════════════════════════════════════
+//  HOST ANSWERS LIST
+// ══════════════════════════════════════════
+function renderAnswersList(qAnswers, showCorrect) {
+  const el = document.getElementById('host-answers');
+  if (!el) return;
+  const entries = Object.values(qAnswers).filter(a => a.guess);
+  if (!entries.length) { el.innerHTML = '<p class="no-answers">Waiting for answers…</p>'; return; }
+  const correctAnswer = showCorrect ? questions[currentQIndex].a.trim().toLowerCase() : null;
+  el.innerHTML = entries.map(a => {
+    const isCorrect = correctAnswer && a.guess.trim().toLowerCase() === correctAnswer;
+    const cls = showCorrect ? (isCorrect ? 'correct' : 'wrong') : '';
+    return `<div class="answer-item ${cls}"><span class="a-name">${a.name}</span><span class="a-guess">${a.guess}</span></div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+//  HOST GAME OVER
+// ══════════════════════════════════════════
+function hostGameOver() {
+  clearInterval(timerInterval);
+  gameRef.update({ state: 'gameover' });
+  gameRef.child('players').once('value', snap => {
+    const players = snap.val() || {};
+    const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
+    const winner = sorted[0] || { name: 'Nobody', pts: 0 };
+    const main = document.getElementById('host-main');
+    main.innerHTML = `
+      <div class="gameover-card">
+        <div class="trophy">🏆</div>
+        <h2>${winner.name} wins!</h2>
+        <p class="winner-pts">${winner.pts} point${winner.pts!==1?'s':''}</p>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.5rem">
+          ${sorted.map((p,i)=>`
+            <div class="lb-row">
+              <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+              <span class="lb-name">${p.name}</span>
+              <span class="lb-pts">${p.pts||0} pts</span>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn btn-primary" onclick="showScreen('screen-landing')">Back to home</button>
+      </div>
+    `;
+  });
+}
+
+function endGame() {
+  if (!confirm('End the game for everyone?')) return;
+  clearInterval(timerInterval);
+  if(gameRef) gameRef.update({ state: 'gameover' });
+  showScreen('screen-landing');
+}
+
+// ══════════════════════════════════════════
+//  JOIN GAME (PLAYER)
+// ══════════════════════════════════════════
+async function joinGame() {
+  const pin = document.getElementById('join-pin').value.trim().toUpperCase();
+  const name = document.getElementById('join-name').value.trim();
+  const err = document.getElementById('join-error');
+  err.style.display = 'none';
+
+  if (!pin || pin.length < 4) { err.textContent = 'Please enter a valid PIN.'; err.style.display = ''; return; }
+  if (!name) { err.textContent = 'Please enter your name.'; err.style.display = ''; return; }
+
+  const dbUrl = prompt('Enter the Firebase database URL (same one the host used):\n\nhttps://your-project-default-rtdb.firebaseio.com');
+  if (!dbUrl || !dbUrl.includes('firebaseio.com')) { err.textContent = 'Invalid Firebase URL.'; err.style.display = ''; return; }
+
+  if (!initFirebase(dbUrl)) { err.textContent = 'Could not connect to Firebase.'; err.style.display = ''; return; }
+
+  gameRef = db.ref('games/' + pin);
+  const snap = await gameRef.once('value');
+  if (!snap.exists()) { err.textContent = 'Game not found. Check the PIN.'; err.style.display = ''; return; }
+
+  const game = snap.val();
+  if (game.state === 'gameover') { err.textContent = 'This game has already ended.'; err.style.display = ''; return; }
+
+  isHost = false;
+  myPlayerName = name;
+  gamePin = pin;
+
+  const playerRef = await gameRef.child('players').push({ name, pts: 0 });
+  myPlayerKey = playerRef.key;
+  playerRef.onDisconnect().remove();
+
+  showScreen('screen-player');
+  document.getElementById('player-name-display').textContent = name;
+  listenAsPlayer(game);
+}
+
+// ══════════════════════════════════════════
+//  PLAYER LISTEN
+// ══════════════════════════════════════════
+function listenAsPlayer(initialGame) {
+  let lastQIndex = initialGame.currentQ;
+  let myAnswerSubmitted = false;
+
+  if (initialGame.state === 'lobby') {
+    renderPlayerWaiting('🎮', 'In the lobby', 'The host will start the game soon!');
+  } else if (initialGame.state === 'playing') {
+    renderPlayerQuestion(initialGame, lastQIndex, myAnswerSubmitted);
+  }
+
+  gameRef.on('value', snap => {
+    const game = snap.val();
+    if (!game) return;
+
+    if (game.state === 'gameover') { renderPlayerGameover(game); return; }
+    if (game.state === 'lobby') { renderPlayerWaiting('🎮', 'In the lobby', 'The host will start the game soon!'); return; }
+
+    if (game.currentQ !== lastQIndex) {
+      lastQIndex = game.currentQ;
+      myAnswerSubmitted = false;
+    }
+    renderPlayerQuestion(game, lastQIndex, myAnswerSubmitted, (submitted) => { myAnswerSubmitted = submitted; });
+  });
+}
+
+function renderPlayerWaiting(emoji, title, sub) {
+  document.getElementById('player-body').innerHTML = `
+    <div class="waiting-card">
+      <div class="big-emoji">${emoji}</div>
+      <h2>${title}</h2>
+      <p>${sub}</p>
+    </div>
+  `;
+}
+
+function renderPlayerQuestion(game, qIdx, submitted, onSubmit) {
+  const qData = game.questions[qIdx];
+  if (!qData) return;
+  const body = document.getElementById('player-body');
+  const hintVisible = game.hintRevealed;
+  const answerVisible = game.answerRevealed;
+
+  body.innerHTML = `
+    <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;text-align:right">Question ${qIdx+1} of ${game.questions.length}</p>
+    ${game.settings && game.settings.timerSecs > 0 ? `<div class="player-timer-bar"><div class="player-timer-fill" id="player-timer-bar" style="width:100%"></div></div>` : ''}
+    <div class="player-q-card">
+      <p class="player-q-text">${qData.q}</p>
+      ${qData.hint ? `<div class="player-hint-box ${hintVisible?'visible':''}" id="player-hint">💡 ${qData.hint}</div>` : ''}
+      <div class="player-answer-reveal ${answerVisible?'visible':''}" id="player-answer">👨 ${game.answer||''}</div>
+      <div class="player-result-msg" id="player-result-msg"></div>
+      <div class="guess-wrap" id="guess-wrap" style="${answerVisible||submitted?'display:none':''}">
+        <input class="guess-input" id="player-guess" type="text" placeholder="Type your answer…" maxlength="50" ${submitted?'disabled':''}>
+        <button class="btn btn-primary" onclick="submitGuess(${qIdx})" ${submitted?'disabled':''}>Submit</button>
+      </div>
+      <div class="submitted-msg ${submitted?'visible':''}" id="submitted-msg">✅ Answer submitted! Waiting for reveal…</div>
+    </div>
+    <div class="player-lb" id="player-lb">
+      <h3>Leaderboard</h3>
+      <p style="font-size:13px;color:var(--gray-400)">Loading…</p>
+    </div>
+  `;
+
+  // Allow enter key to submit
+  const inp = document.getElementById('player-guess');
+  if (inp) inp.addEventListener('keydown', e => { if(e.key==='Enter') submitGuess(qIdx); });
+
+  // If answer revealed, check my answer
+  if (answerVisible && game.answer) {
+    gameRef.child('answers/' + qIdx + '/' + myPlayerKey).once('value', snap => {
+      const myAns = snap.val();
+      const msg = document.getElementById('player-result-msg');
+      if (myAns && myAns.guess) {
+        const correct = myAns.guess.trim().toLowerCase() === game.answer.trim().toLowerCase();
+        if (msg) { msg.className = 'player-result-msg ' + (correct?'correct':'wrong'); msg.textContent = correct ? '🎉 Correct! Nice one.' : `❌ You said "${myAns.guess}" — the answer was ${game.answer}.`; }
+      }
+    });
+  }
+
+  // Leaderboard
+  gameRef.child('players').on('value', snap => {
+    const players = snap.val() || {};
+    const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
+    const lb = document.getElementById('player-lb');
+    if (lb) {
+      lb.innerHTML = `<h3>Leaderboard</h3>` + sorted.map((p,i)=>`
+        <div class="lb-row">
+          <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+          <span class="lb-name" style="${p.name===myPlayerName?'font-weight:600;color:var(--green-dark)':''}">${p.name}${p.name===myPlayerName?' (you)':''}</span>
+          <span class="lb-pts">${p.pts||0} pts</span>
+        </div>
+      `).join('');
+    }
+  });
+}
+
+async function submitGuess(qIdx) {
+  const inp = document.getElementById('player-guess');
+  if (!inp) return;
+  const guess = inp.value.trim();
+  if (!guess) return;
+
+  await gameRef.child('answers/' + qIdx + '/' + myPlayerKey).set({ name: myPlayerName, guess });
+
+  inp.disabled = true;
+  document.querySelector('.guess-wrap button').disabled = true;
+  document.getElementById('guess-wrap').style.display = 'none';
+  const sm = document.getElementById('submitted-msg');
+  if (sm) sm.classList.add('visible');
+}
+
+function renderPlayerGameover(game) {
+  const players = game.players || {};
+  const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  const winner = sorted[0] || { name: 'Nobody', pts: 0 };
+  document.getElementById('player-body').innerHTML = `
+    <div class="gameover-card">
+      <div class="trophy">🏆</div>
+      <h2>${winner.name} wins!</h2>
+      <p class="winner-pts">${winner.pts} point${winner.pts!==1?'s':''}</p>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.5rem;text-align:left">
+        ${sorted.map((p,i)=>`
+          <div class="lb-row">
+            <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+            <span class="lb-name" style="${p.name===myPlayerName?'font-weight:600;color:var(--green-dark)':''}">${p.name}${p.name===myPlayerName?' (you)':''}</span>
+            <span class="lb-pts">${p.pts||0} pts</span>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn btn-primary" onclick="showScreen('screen-landing')">Back to home</button>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════
+//  SIMPLIFIED JOIN (no prompt for URL)
+// ══════════════════════════════════════════
+// Override joinGame to ask for URL separately
+// The prompt approach works for testing; for production, embed URL in the file.
+</script>
+</body>
+</html>
