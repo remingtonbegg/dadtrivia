@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dad Trivia 🎉</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:wght@700;900&display=swap');
+  :root {
+    --green: #1D9E75; --green-dark: #085041; --green-light: #E1F5EE;
+    --gold: #BA7517; --gold-dark: #633806; --gold-light: #FAEEDA; --gold-mid: #EF9F27;
+    --blue: #185FA5; --blue-light: #E6F1FB;
+    --red: #A32D2D; --red-light: #FCEBEB;
+    --gray-50: #F8F8F7; --gray-100: #F0EFE9; --gray-200: #D3D1C7;
+    --gray-400: #888780; --gray-700: #444441; --gray-900: #2C2C2A;
+    --radius: 14px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: linear-gradient(155deg, #FAEEDA 0%, #E1F5EE 55%, #F8F8F7 100%); color: var(--gray-900); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .wrap { max-width: 720px; width: 100%; }
+  .hero { text-align: center; margin-bottom: 2rem; }
+  .hero .emoji { font-size: 56px; margin-bottom: .5rem; }
+  .hero h1 { font-family: 'Fraunces', serif; font-size: 36px; margin-bottom: 6px; }
+  .hero p { font-size: 15px; color: var(--gray-700); line-height: 1.6; }
+  .fb-panel { background: var(--blue-light); border: 1px solid #B5D4F4; border-radius: var(--radius); padding: 18px; margin-bottom: 1.5rem; }
+  .fb-panel h3 { font-size: 14px; font-weight: 600; color: var(--blue); margin-bottom: 6px; }
+  .fb-panel p { font-size: 13px; color: var(--blue); line-height: 1.6; margin-bottom: 8px; }
+  .fb-panel ol { font-size: 13px; color: var(--blue); line-height: 1.8; padding-left: 18px; margin-bottom: 10px; }
+  .fb-panel input { width: 100%; border: 1px solid #B5D4F4; border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13px; font-family: monospace; color: var(--gray-900); background: #fff; outline: none; }
+  .fb-panel input:focus { border-color: var(--blue); }
+  .fb-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; margin-top: 10px; }
+  .fb-status.ok { background: var(--green-light); color: var(--green-dark); }
+  .fb-status.err { background: var(--red-light); color: var(--red); }
+  .fb-status.pending { background: var(--gold-light); color: var(--gold); }
+  .games { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .game-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 1.5rem; text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 8px; transition: transform .12s, box-shadow .12s, border-color .12s; }
+  .game-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.08); border-color: var(--gold-mid); }
+  .game-card .ge { font-size: 40px; }
+  .game-card h2 { font-family: 'Fraunces', serif; font-size: 22px; }
+  .game-card p { font-size: 13px; color: var(--gray-400); line-height: 1.5; }
+  .game-card .go { margin-top: auto; font-size: 14px; font-weight: 600; color: var(--gold-dark); }
+  .game-card.trivia .go { color: var(--green-dark); }
+  footer { text-align: center; font-size: 12px; color: var(--gray-400); margin-top: 1.5rem; line-height: 1.6; }
+  @media (max-width: 560px) { .games { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="emoji">👨‍👧‍👦</div>
+      <h1>Dad Trivia Night</h1>
+      <p>Two party games for your crew. Host on one screen, everyone else plays on their phones.</p>
+    </div>
+
+    <div class="fb-panel">
+      <h3>🔥 One-time Firebase setup</h3>
+      <p>These games sync live across devices using a free Firebase Realtime Database. Set it up once — it's remembered on this device and shared by both games.</p>
+      <ol>
+        <li>Go to <strong>console.firebase.google.com</strong> → create a project (skip Analytics)</li>
+        <li>Open <strong>Realtime Database</strong> → Create database → start in <strong>test mode</strong></li>
+        <li>Copy the database URL and paste it here:</li>
+      </ol>
+      <input type="text" id="fb-url" placeholder="https://your-project-default-rtdb.firebaseio.com" oninput="saveUrl()">
+      <div id="fb-status" class="fb-status pending">⏳ No database URL saved yet</div>
+    </div>
+
+    <div class="games">
+      <a class="game-card facts" href="dad-facts-quiz.html">
+        <span class="ge">🧠</span>
+        <h2>Dad Facts Quiz</h2>
+        <p>Multiple-choice trivia about dads. Answer fast — speed earns bonus points.</p>
+        <span class="go">Play →</span>
+      </a>
+      <a class="game-card trivia" href="dad-trivia-game.html">
+        <span class="ge">😂</span>
+        <h2>Guess the Dad</h2>
+        <p>Read the joke, guess which dad told it. Open-ended answers, hints optional.</p>
+        <span class="go">Play →</span>
+      </a>
+    </div>
+
+    <footer>Tip: the host clicks "Host a game" inside a game; players use the shareable join link or the PIN.</footer>
+  </div>
+
+<script>
+  const FB_URL_KEY = 'dadtrivia_fb_url';
+  const input = document.getElementById('fb-url');
+  const status = document.getElementById('fb-status');
+
+  function render(url) {
+    if (!url) { status.className = 'fb-status pending'; status.textContent = '⏳ No database URL saved yet'; return; }
+    if (!url.includes('firebaseio.com')) { status.className = 'fb-status err'; status.textContent = "❌ That doesn't look like a Firebase URL"; return; }
+    status.className = 'fb-status ok'; status.textContent = '✅ Saved — both games will use this';
+  }
+
+  function saveUrl() {
+    const url = input.value.trim();
+    try { if (url) localStorage.setItem(FB_URL_KEY, url); else localStorage.removeItem(FB_URL_KEY); } catch(e) {}
+    render(url);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    let saved = '';
+    try { saved = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {}
+    if (saved) input.value = saved;
+    render(saved);
+  });
+</script>
+</body>
+</html>
