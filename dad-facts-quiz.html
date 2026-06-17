@@ -426,12 +426,16 @@ function testFirebase() {
   testTimeout = setTimeout(() => {
     if (!initFirebase(url)) { status.className='firebase-status err'; status.textContent='❌ Invalid URL'; return; }
     const r = db.ref('.info/connected');
-    r.on('value', snap => {
-      r.off();
-      if (snap.val()) { status.className='firebase-status ok'; status.textContent='✅ Connected — ready!'; firebaseReady=true; launchBtn.disabled=false; try { localStorage.setItem(FB_URL_KEY, url); } catch(e) {} }
-      else { status.className='firebase-status err'; status.textContent='❌ Could not connect'; }
-    });
-    setTimeout(() => { if(!firebaseReady){ status.className='firebase-status err'; status.textContent='❌ Timed out. Check URL & database rules.'; } }, 6000);
+    const onVal = snap => {
+      // .info/connected fires `false` first, then `true` once the socket opens.
+      // Only treat `true` as success; let the timeout below catch real failures.
+      if (snap.val() === true) {
+        r.off('value', onVal);
+        status.className='firebase-status ok'; status.textContent='✅ Connected — ready!'; firebaseReady=true; launchBtn.disabled=false; try { localStorage.setItem(FB_URL_KEY, url); } catch(e) {}
+      }
+    };
+    r.on('value', onVal);
+    setTimeout(() => { if(!firebaseReady){ r.off('value', onVal); status.className='firebase-status err'; status.textContent='❌ Could not connect. Check the URL (and its region) and that Realtime Database is enabled.'; } }, 8000);
   }, 600);
 }
 
