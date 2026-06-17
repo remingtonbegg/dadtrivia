@@ -255,12 +255,6 @@
     </div>
   </div>
   <div class="setup-body">
-    <div class="firebase-panel">
-      <h3>🔥 Firebase connection</h3>
-      <p>Paste your Firebase Realtime Database URL to enable live multiplayer:</p>
-      <input type="text" id="firebase-url-input" placeholder="https://your-project-default-rtdb.firebaseio.com" oninput="testFirebase()">
-      <div id="firebase-status" class="firebase-status pending">⏳ Waiting for URL</div>
-    </div>
     <div class="setup-tabs">
       <button class="setup-tab active" onclick="setupTab('questions')">Questions (10)</button>
       <button class="setup-tab" onclick="setupTab('settings')">Settings</button>
@@ -320,120 +314,51 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
+
 // ══════════════════════════════════════════
-//  QUESTIONS  (10 dad facts, 4 choices each)
+//  QUESTIONS  (host-side; includes correct answers)
 // ══════════════════════════════════════════
 let questions = [
-  {
-    q: "On average, how many hours per week does a US dad spend on childcare activities?",
-    options: ["A: 2 hours","B: 8 hours","C: 14 hours","D: 20 hours"],
-    correct: "B",
-    fact: "Dads today spend about 8 hours a week on childcare — 3× more than in 1965!"
-  },
-  {
-    q: "What percentage of US fathers say being a dad is the most important role of their life?",
-    options: ["A: 35%","B: 54%","C: 68%","D: 82%"],
-    correct: "D",
-    fact: "82% of dads say fatherhood is the most important role they hold."
-  },
-  {
-    q: "Which famous dad walked on the moon AND had a son who became a professional golfer?",
-    options: ["A: Buzz Aldrin","B: Neil Armstrong","C: Alan Shepard","D: Jim Lovell"],
-    correct: "B",
-    fact: "Neil Armstrong's son Mark Armstrong became a competitive amateur golfer."
-  },
-  {
-    q: "In the US, Father's Day is celebrated on which day?",
-    options: ["A: First Sunday in June","B: Second Sunday in June","C: Third Sunday in June","D: Last Sunday in June"],
-    correct: "C",
-    fact: "Father's Day falls on the third Sunday of June every year in the US."
-  },
-  {
-    q: "How many times more likely is a child to do well in school if their father is actively involved?",
-    options: ["A: Twice as likely","B: Three times as likely","C: Four times as likely","D: No measurable difference"],
-    correct: "A",
-    fact: "Research shows children with involved fathers are twice as likely to thrive academically."
-  },
-  {
-    q: "Which country celebrates 'Father's Day' on Saint Joseph's Day, March 19th?",
-    options: ["A: France","B: Germany","C: Spain","D: Japan"],
-    correct: "C",
-    fact: "Spain, Portugal, and several Latin American countries celebrate dads on March 19th — Saint Joseph's Day."
-  },
-  {
-    q: "Approximately how many dads are stay-at-home fathers in the United States?",
-    options: ["A: 200,000","B: 800,000","C: 2 million","D: 5 million"],
-    correct: "C",
-    fact: "Around 2 million dads in the US are stay-at-home fathers, up significantly since the 1990s."
-  },
-  {
-    q: "What is the most common gift dads receive on Father's Day?",
-    options: ["A: Power tools","B: Grilling equipment","C: Greeting cards","D: Clothing"],
-    correct: "C",
-    fact: "Greeting cards are the #1 Father's Day gift — about 72 million cards are exchanged each year."
-  },
-  {
-    q: "Which US president had the most biological children — fathering 15 kids?",
-    options: ["A: George Washington","B: John Tyler","C: Theodore Roosevelt","D: Abraham Lincoln"],
-    correct: "B",
-    fact: "John Tyler fathered 15 children across two marriages — more than any other US president."
-  },
-  {
-    q: "Research shows that dads tend to use what kind of language with young children compared to moms?",
-    options: ["A: Simpler vocabulary","B: More complex vocabulary","C: More emotional language","D: More repetitive phrases"],
-    correct: "B",
-    fact: "Studies show dads naturally use more complex vocabulary with young children, which helps boost language development!"
-  }
+  { q: "On average, how many hours per week does a US dad spend on childcare activities?", options: ["A: 2 hours","B: 8 hours","C: 14 hours","D: 20 hours"], correct: "B", fact: "Dads today spend about 8 hours a week on childcare — 3× more than in 1965!" },
+  { q: "What percentage of US fathers say being a dad is the most important role of their life?", options: ["A: 35%","B: 54%","C: 68%","D: 82%"], correct: "D", fact: "82% of dads say fatherhood is the most important role they hold." },
+  { q: "Which famous dad walked on the moon AND had a son who became a professional golfer?", options: ["A: Buzz Aldrin","B: Neil Armstrong","C: Alan Shepard","D: Jim Lovell"], correct: "B", fact: "Neil Armstrong's son Mark Armstrong became a competitive amateur golfer." },
+  { q: "In the US, Father's Day is celebrated on which day?", options: ["A: First Sunday in June","B: Second Sunday in June","C: Third Sunday in June","D: Last Sunday in June"], correct: "C", fact: "Father's Day falls on the third Sunday of June every year in the US." },
+  { q: "How many times more likely is a child to do well in school if their father is actively involved?", options: ["A: Twice as likely","B: Three times as likely","C: Four times as likely","D: No measurable difference"], correct: "A", fact: "Research shows children with involved fathers are twice as likely to thrive academically." },
+  { q: "Which country celebrates 'Father's Day' on Saint Joseph's Day, March 19th?", options: ["A: France","B: Germany","C: Spain","D: Japan"], correct: "C", fact: "Spain, Portugal, and several Latin American countries celebrate dads on March 19th — Saint Joseph's Day." },
+  { q: "Approximately how many dads are stay-at-home fathers in the United States?", options: ["A: 200,000","B: 800,000","C: 2 million","D: 5 million"], correct: "C", fact: "Around 2 million dads in the US are stay-at-home fathers, up significantly since the 1990s." },
+  { q: "What is the most common gift dads receive on Father's Day?", options: ["A: Power tools","B: Grilling equipment","C: Greeting cards","D: Clothing"], correct: "C", fact: "Greeting cards are the #1 Father's Day gift — about 72 million cards are exchanged each year." },
+  { q: "Which US president had the most biological children — fathering 15 kids?", options: ["A: George Washington","B: John Tyler","C: Theodore Roosevelt","D: Abraham Lincoln"], correct: "B", fact: "John Tyler fathered 15 children across two marriages — more than any other US president." },
+  { q: "Research shows that dads tend to use what kind of language with young children compared to moms?", options: ["A: Simpler vocabulary","B: More complex vocabulary","C: More emotional language","D: More repetitive phrases"], correct: "B", fact: "Studies show dads naturally use more complex vocabulary with young children, which helps boost language development!" }
 ];
 
 // ══════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════
-let db = null, gamePin = null, gameRef = null;
-let isHost = false, myPlayerName = null, myPlayerKey = null;
-let currentQIndex = 0, firebaseApp = null, firebaseReady = false;
-let ptsCorrect = 10, ptsBonus = 5;
-let answerRevealed = false;
-let fbUrl = null;                 // active Firebase database URL
-let hasAnswered = false;          // whether I've answered the current question
-let latestPlayers = {};           // last-known players snapshot (for the player leaderboard)
-let playersListenerAttached = false;
-const awardedQs = {};             // guards against double-awarding points on re-reveal
-const FB_URL_KEY = 'dadtrivia_fb_url';
-const DEFAULT_FB_URL = 'https://dad-trivia-default-rtdb.firebaseio.com';
+let gamePin = null, isHost = false, myPlayerName = null, myPlayerId = null;
+let currentQIndex = 0, ptsCorrect = 10, ptsBonus = 5, answerRevealed = false;
+let hasAnswered = false, latestPlayers = {}, latestGame = null;
+let lastQ = -1, lastRevealed = false, pollTimer = null;
+const awardedQs = {};
 
 // ══════════════════════════════════════════
-//  FIREBASE
+//  API  (Vercel serverless + KV/Redis)
 // ══════════════════════════════════════════
-function initFirebase(url) {
-  if (firebaseApp) { try { firebaseApp.delete(); } catch(e) {} }
-  try { firebaseApp = firebase.initializeApp({ databaseURL: url }, 'dadfacts-' + Date.now()); db = firebase.database(firebaseApp); fbUrl = url; return true; }
-  catch(e) { return false; }
+const API = '/api/game';
+async function apiPost(payload) {
+  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
 }
-
-let testTimeout = null;
-function testFirebase() {
-  const url = document.getElementById('firebase-url-input').value.trim();
-  const status = document.getElementById('firebase-status');
-  const launchBtn = document.getElementById('launch-btn');
-  firebaseReady = false; launchBtn.disabled = true;
-  if (!url || !url.includes('firebaseio.com')) { status.className='firebase-status pending'; status.textContent='⏳ Waiting for valid URL'; return; }
-  status.className='firebase-status pending'; status.textContent='⏳ Testing…';
-  clearTimeout(testTimeout);
-  testTimeout = setTimeout(() => {
-    if (!initFirebase(url)) { status.className='firebase-status err'; status.textContent='❌ Invalid URL'; return; }
-    const r = db.ref('.info/connected');
-    r.on('value', snap => {
-      r.off();
-      if (snap.val()) { status.className='firebase-status ok'; status.textContent='✅ Connected — ready!'; firebaseReady=true; launchBtn.disabled=false; try { localStorage.setItem(FB_URL_KEY, url); } catch(e) {} }
-      else { status.className='firebase-status err'; status.textContent='❌ Could not connect'; }
-    });
-    setTimeout(() => { if(!firebaseReady){ status.className='firebase-status err'; status.textContent='❌ Timed out. Check URL & database rules.'; } }, 6000);
-  }, 600);
+async function apiState(pin) {
+  const r = await fetch(API + '?pin=' + encodeURIComponent(pin));
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
 }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
 // ══════════════════════════════════════════
 //  SCREENS / SETUP
@@ -460,13 +385,13 @@ function renderQList() {
         <button class="del-btn" onclick="deleteQ(${i})">✕</button>
       </div>
       <div class="q-lbl">Question</div>
-      <textarea rows="3" oninput="questions[${i}].q=this.value">${q.q}</textarea>
+      <textarea rows="3" oninput="questions[${i}].q=this.value">${esc(q.q)}</textarea>
       <div class="q-lbl" style="margin-top:10px">Answer choices</div>
       <div class="options-grid">
         ${q.options.map((opt, j) => `
           <div class="opt-wrap ${q.correct===optColors[j]?'correct-opt':''}">
             <span class="opt-label">${optColors[j]}</span>
-            <input type="text" value="${opt.replace(/^[ABCD]: /,'')}" oninput="questions[${i}].options[${j}]='${optColors[j]}: '+this.value">
+            <input type="text" value="${esc(opt.replace(/^[ABCD]: /,''))}" oninput="questions[${i}].options[${j}]='${optColors[j]}: '+this.value">
           </div>
         `).join('')}
       </div>
@@ -478,7 +403,7 @@ function renderQList() {
       </div>
       <div style="margin-top:10px">
         <div class="q-lbl">Fun fact shown after reveal (optional)</div>
-        <input type="text" value="${q.fact||''}" placeholder="Extra fact…" oninput="questions[${i}].fact=this.value">
+        <input type="text" value="${esc(q.fact||'')}" placeholder="Extra fact…" oninput="questions[${i}].fact=this.value">
       </div>
     `;
     list.appendChild(card);
@@ -498,37 +423,26 @@ function addQuestion() {
 // ══════════════════════════════════════════
 //  LAUNCH
 // ══════════════════════════════════════════
-function genPin() { const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from({length:6},()=>c[Math.floor(Math.random()*c.length)]).join(''); }
-
 async function launchLobby() {
-  if(!firebaseReady){ alert('Connect Firebase first.'); return; }
   ptsCorrect = parseInt(document.getElementById('pts-correct').value)||10;
   ptsBonus = parseInt(document.getElementById('pts-bonus').value)||5;
-  gamePin = genPin();
-  gameRef = db.ref('games/'+gamePin);
-  await gameRef.set({
-    state:'lobby', currentQ:-1, answerRevealed:false,
-    questions: questions.map(q=>({ q:q.q, options:q.options, fact:q.fact||'' })),
-    answers:{}, players:{},
-    settings:{ ptsCorrect, ptsBonus },
-    createdAt: Date.now()
-  });
-  setTimeout(()=>{ if(gameRef) gameRef.remove(); }, 4*60*60*1000);
-  isHost=true;
-  showScreen('screen-host');
-  document.getElementById('host-pin-badge').textContent = 'PIN: '+gamePin;
-  renderHostLobby();
-  listenAsHost();
+  const launchBtn = document.getElementById('launch-btn');
+  launchBtn.disabled = true;
+  try {
+    const sanitized = questions.map(q => ({ q:q.q, options:q.options, fact:q.fact||'' }));
+    const { pin } = await apiPost({ action:'create', questions:sanitized, settings:{ ptsCorrect, ptsBonus } });
+    gamePin = pin; isHost = true;
+    showScreen('screen-host');
+    document.getElementById('host-pin-badge').textContent = 'PIN: ' + pin;
+    renderHostLobby();
+    startHostPolling();
+  } catch(e) {
+    alert('Could not create the game: ' + e.message);
+    launchBtn.disabled = false;
+  }
 }
 
-// ══════════════════════════════════════════
-//  HOST LOBBY
-// ══════════════════════════════════════════
-function buildJoinLink() {
-  const base = location.origin + location.pathname;
-  return base + '#join=' + encodeURIComponent(gamePin) + '&db=' + encodeURIComponent(fbUrl || '');
-}
-
+function buildJoinLink() { return location.origin + location.pathname + '#join=' + encodeURIComponent(gamePin); }
 function copyJoinLink() {
   const link = buildJoinLink();
   const done = () => { const b = document.getElementById('copy-link-btn'); if (b) { b.textContent = '✅ Copied!'; setTimeout(() => { b.textContent = '📋 Copy join link'; }, 1800); } };
@@ -551,32 +465,36 @@ function renderHostLobby() {
   `;
 }
 
-function listenAsHost() {
-  gameRef.child('players').on('value', snap => {
-    const players = snap.val()||{};
-    const names = Object.values(players).map(p=>p.name).filter(Boolean);
-    document.getElementById('host-player-count').textContent = names.length+' player'+(names.length!==1?'s':'');
-    const chips = document.getElementById('lobby-chips');
-    if(chips) chips.innerHTML = names.length ? names.map(n=>`<span class="player-chip">${n}</span>`).join('') : '<p style="font-size:13px;color:var(--gray-400);margin-top:8px">Waiting for players…</p>';
-    renderLeaderboard(players);
-  });
-  gameRef.child('answers').on('value', snap => {
-    const all = snap.val()||{};
-    renderAnswersTally(all[currentQIndex]||{});
-  });
+// ══════════════════════════════════════════
+//  HOST POLLING
+// ══════════════════════════════════════════
+function startHostPolling() { stopPolling(); refreshHost(); pollTimer = setInterval(refreshHost, 2000); }
+async function refreshHost() {
+  let g; try { g = await apiState(gamePin); } catch(e) { return; }
+  if (!g) return;
+  latestGame = g;
+  const players = g.players || {};
+  const names = Object.values(players).map(p => p.name).filter(Boolean);
+  const countEl = document.getElementById('host-player-count');
+  if (countEl) countEl.textContent = names.length + ' player' + (names.length!==1?'s':'');
+  const chips = document.getElementById('lobby-chips');
+  if (chips) chips.innerHTML = names.length ? names.map(n => `<span class="player-chip">${esc(n)}</span>`).join('') : '<p style="font-size:13px;color:var(--gray-400);margin-top:8px">Waiting for players…</p>';
+  renderLeaderboard(players);
+  const ans = (g.answers && g.answers[currentQIndex]) || {};
+  renderAnswersTally(ans, answerRevealed, questions[currentQIndex] && questions[currentQIndex].correct);
 }
 
 // ══════════════════════════════════════════
 //  HOST GAME
 // ══════════════════════════════════════════
 async function startGame() {
-  currentQIndex=0; answerRevealed=false;
-  await gameRef.update({ state:'playing', currentQ:0, answerRevealed:false });
+  currentQIndex = 0; answerRevealed = false;
+  await apiPost({ action:'update', pin:gamePin, patch:{ state:'playing', currentQ:0, answerRevealed:false, correctAnswer:null } });
   renderHostQuestion();
 }
 
 function renderHostQuestion() {
-  answerRevealed=false;
+  answerRevealed = false;
   const q = questions[currentQIndex];
   const pct = Math.round((currentQIndex/questions.length)*100);
   const optBadges = ['opt-a','opt-b','opt-c','opt-d'];
@@ -585,12 +503,12 @@ function renderHostQuestion() {
     <p style="font-size:12px;color:var(--gray-400);text-align:right;margin-bottom:10px">${currentQIndex+1} of ${questions.length}</p>
     <div class="host-q-card">
       <p class="host-q-meta"><span>Question ${currentQIndex+1}</span><span style="font-size:12px;background:var(--gold-light);color:var(--gold-dark);padding:3px 10px;border-radius:10px;font-weight:600">✅ +${ptsCorrect} pts &nbsp;⚡ up to +${ptsBonus} bonus</span></p>
-      <p class="host-q-text">${q.q}</p>
+      <p class="host-q-text">${esc(q.q)}</p>
       <div class="host-options" id="host-options">
         ${q.options.map((opt,j)=>`
           <div class="host-option" id="host-opt-${['A','B','C','D'][j]}">
             <span class="opt-badge ${optBadges[j]}">${['A','B','C','D'][j]}</span>
-            <span class="opt-text">${opt.replace(/^[ABCD]: /,'')}</span>
+            <span class="opt-text">${esc(opt.replace(/^[ABCD]: /,''))}</span>
           </div>
         `).join('')}
       </div>
@@ -606,42 +524,34 @@ function renderHostQuestion() {
   `;
 }
 
-function hostRevealAnswer() {
-  answerRevealed=true;
+async function hostRevealAnswer() {
+  answerRevealed = true;
   const q = questions[currentQIndex];
   const optLetters = ['A','B','C','D'];
-  optLetters.forEach(l => {
-    const el = document.getElementById('host-opt-'+l);
-    if(el) el.className = 'host-option ' + (l===q.correct ? 'revealed-correct' : 'revealed-wrong');
-  });
-  document.getElementById('reveal-btn').style.display='none';
+  optLetters.forEach(l => { const el = document.getElementById('host-opt-'+l); if(el) el.className = 'host-option ' + (l===q.correct ? 'revealed-correct' : 'revealed-wrong'); });
+  const rb = document.getElementById('reveal-btn'); if(rb) rb.style.display='none';
   if(q.fact){ const fb=document.getElementById('fact-box'); fb.textContent='💡 '+q.fact; fb.style.display=''; }
-  gameRef.update({ answerRevealed:true, correctAnswer: q.correct });
-  // Award points with speed bonus — only once per question
-  gameRef.child('answers/'+currentQIndex).once('value', snap => {
-    const ans = snap.val()||{};
-    if(!awardedQs[currentQIndex]){
-      awardedQs[currentQIndex] = true;
-      const correct = Object.entries(ans).filter(([k,v])=>v.choice===q.correct).sort((a,b)=>a[1].ts-b[1].ts);
-      const updates={};
-      correct.forEach(([key,v],rank)=>{
-        const bonus = Math.max(0, ptsBonus - rank);
-        updates['players/'+key+'/pts'] = firebase.database.ServerValue.increment(ptsCorrect + bonus);
-      });
-      if(Object.keys(updates).length) gameRef.update(updates);
-    }
-    renderAnswersTally(ans, true, q.correct);
-  });
+  await apiPost({ action:'update', pin:gamePin, patch:{ answerRevealed:true, correctAnswer:q.correct } });
+  let g; try { g = await apiState(gamePin); } catch(e) { g = latestGame; }
+  const ans = (g && g.answers && g.answers[currentQIndex]) || {};
+  if (!awardedQs[currentQIndex]) {
+    awardedQs[currentQIndex] = true;
+    const correct = Object.entries(ans).filter(([id,v]) => v.choice===q.correct).sort((a,b)=>a[1].ts-b[1].ts);
+    const updates = {};
+    correct.forEach(([id,v],rank) => { updates[id] = ptsCorrect + Math.max(0, ptsBonus - rank); });
+    if (Object.keys(updates).length) { try { await apiPost({ action:'score', pin:gamePin, updates }); } catch(e) {} }
+  }
+  renderAnswersTally(ans, true, q.correct);
 }
 
-function hostNextQ() {
+async function hostNextQ() {
   if(currentQIndex>=questions.length-1){ hostGameOver(); return; }
-  currentQIndex++;
-  gameRef.update({ currentQ:currentQIndex, answerRevealed:false, correctAnswer:null });
+  currentQIndex++; answerRevealed = false;
+  await apiPost({ action:'update', pin:gamePin, patch:{ currentQ:currentQIndex, answerRevealed:false, correctAnswer:null } });
   renderHostQuestion();
 }
-function hostPrevQ() {
-  if(currentQIndex>0){ currentQIndex--; gameRef.update({ currentQ:currentQIndex, answerRevealed:false, correctAnswer:null }); renderHostQuestion(); }
+async function hostPrevQ() {
+  if(currentQIndex>0){ currentQIndex--; answerRevealed = false; await apiPost({ action:'update', pin:gamePin, patch:{ currentQ:currentQIndex, answerRevealed:false, correctAnswer:null } }); renderHostQuestion(); }
 }
 
 function renderLeaderboard(players) {
@@ -652,18 +562,18 @@ function renderLeaderboard(players) {
   lb.innerHTML = sorted.map((p,i)=>`
     <div class="lb-row">
       <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-      <span class="lb-name">${p.name}</span>
+      <span class="lb-name">${esc(p.name)}</span>
       <div class="lb-adj"><button onclick="adjPts('${p.key}',1)">+</button><button onclick="adjPts('${p.key}',-1)">−</button></div>
       <span class="lb-pts">${p.pts}</span>
     </div>
   `).join('');
 }
-function adjPts(key,delta){ gameRef.child('players/'+key+'/pts').transaction(cur=>Math.max(0,(cur||0)+delta)); }
+async function adjPts(key,delta){ try { await apiPost({ action:'score', pin:gamePin, updates:{ [key]: delta } }); refreshHost(); } catch(e) {} }
 
 function renderAnswersTally(ans, revealed, correctAnswer) {
-  const el=document.getElementById('host-answers');
+  const el = document.getElementById('host-answers');
   if(!el) return;
-  const entries=Object.values(ans).filter(a=>a.choice);
+  const entries = Object.values(ans).filter(a=>a.choice);
   if(!entries.length){ el.innerHTML='<p class="no-data">Waiting for answers…</p>'; return; }
   const sorted = revealed ? [...entries].sort((a,b)=>a.ts-b.ts) : entries;
   let correctCount=0;
@@ -672,42 +582,43 @@ function renderAnswersTally(ans, revealed, correctAnswer) {
     if(isCorrect) correctCount++;
     const bonus = isCorrect ? Math.max(0, ptsBonus-(correctCount-1)) : 0;
     return `<div class="tally-row ${isCorrect?'correct-tally':''}">
-      <span class="tally-name">${a.name}</span>
-      <span class="tally-choice ${a.choice}">${a.choice}</span>
+      <span class="tally-name">${esc(a.name)}</span>
+      <span class="tally-choice ${a.choice}">${esc(a.choice)}</span>
       ${isCorrect&&bonus>0?`<span class="tally-bonus">+${bonus}</span>`:''}
     </div>`;
   }).join('')+'</div>';
 }
 
-function hostGameOver() {
-  gameRef.update({ state:'gameover' });
-  gameRef.child('players').once('value', snap=>{
-    const players = snap.val()||{};
-    const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
-    const winner = sorted[0]||{name:'Nobody',pts:0};
-    document.getElementById('host-main').innerHTML = `
-      <div class="gameover-card">
-        <div class="trophy">🏆</div>
-        <h2>${winner.name} wins!</h2>
-        <p class="winner-sub">${winner.pts} points</p>
-        <div class="final-lb">
-          ${sorted.map((p,i)=>`
-            <div class="final-row">
-              <span class="final-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-              <span class="final-name">${p.name}</span>
-              <span class="final-pts">${p.pts||0} pts</span>
-            </div>
-          `).join('')}
-        </div>
-        <div style="margin-top:1.5rem;"><button class="btn btn-gold" onclick="showScreen('screen-landing')">Back to home</button></div>
+async function hostGameOver() {
+  await apiPost({ action:'update', pin:gamePin, patch:{ state:'gameover' } });
+  let g; try { g = await apiState(gamePin); } catch(e) { g = latestGame; }
+  const players = (g && g.players) || {};
+  const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  const winner = sorted[0]||{name:'Nobody',pts:0};
+  stopPolling();
+  document.getElementById('host-main').innerHTML = `
+    <div class="gameover-card">
+      <div class="trophy">🏆</div>
+      <h2>${esc(winner.name)} wins!</h2>
+      <p class="winner-sub">${winner.pts} points</p>
+      <div class="final-lb">
+        ${sorted.map((p,i)=>`
+          <div class="final-row">
+            <span class="final-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+            <span class="final-name">${esc(p.name)}</span>
+            <span class="final-pts">${p.pts||0} pts</span>
+          </div>
+        `).join('')}
       </div>
-    `;
-  });
+      <div style="margin-top:1.5rem;"><button class="btn btn-gold" onclick="showScreen('screen-landing')">Back to home</button></div>
+    </div>
+  `;
 }
 
 function endGame() {
   if(!confirm('End the game for everyone?')) return;
-  if(gameRef) gameRef.update({ state:'gameover' });
+  if(gamePin) apiPost({ action:'update', pin:gamePin, patch:{ state:'gameover' } }).catch(()=>{});
+  stopPolling();
   showScreen('screen-landing');
 }
 
@@ -715,71 +626,43 @@ function endGame() {
 //  JOIN (PLAYER)
 // ══════════════════════════════════════════
 async function joinGame() {
-  const pin=document.getElementById('join-pin').value.trim().toUpperCase();
-  const name=document.getElementById('join-name').value.trim();
-  const err=document.getElementById('join-error');
+  const pin = document.getElementById('join-pin').value.trim().toUpperCase();
+  const name = document.getElementById('join-name').value.trim();
+  const err = document.getElementById('join-error');
   err.style.display='none';
   if(!pin||pin.length<4){ err.textContent='Please enter a valid PIN.'; err.style.display=''; return; }
   if(!name){ err.textContent='Please enter your name.'; err.style.display=''; return; }
-  // Resolve the Firebase URL: join link → saved value → built-in default → prompt.
-  let dbUrl = fbUrl;
-  if(!dbUrl){ try { dbUrl = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {} }
-  if(!dbUrl){ dbUrl = DEFAULT_FB_URL; }
-  if(!dbUrl){ dbUrl = prompt('Enter the Firebase database URL (ask your host):\n\nhttps://your-project-default-rtdb.firebaseio.com') || ''; }
-  if(!dbUrl||!dbUrl.includes('firebaseio.com')){ err.textContent='Invalid Firebase URL.'; err.style.display=''; return; }
-  if(!initFirebase(dbUrl)){ err.textContent='Could not connect.'; err.style.display=''; return; }
-  try { localStorage.setItem(FB_URL_KEY, dbUrl); } catch(e) {}
-  gameRef=db.ref('games/'+pin);
-  const snap=await gameRef.once('value');
-  if(!snap.exists()){ err.textContent='Game not found. Check the PIN.'; err.style.display=''; return; }
-  const game=snap.val();
-  if(game.state==='gameover'){ err.textContent='This game has already ended.'; err.style.display=''; return; }
-  isHost=false; myPlayerName=name; gamePin=pin;
-  const playerRef=await gameRef.child('players').push({name,pts:0});
-  myPlayerKey=playerRef.key;
-  playerRef.onDisconnect().remove();
-  showScreen('screen-player');
-  document.getElementById('player-name-display').textContent=name;
-  listenAsPlayer(game);
-}
-
-// ══════════════════════════════════════════
-//  PLAYER LISTEN
-// ══════════════════════════════════════════
-function listenAsPlayer(initialGame) {
-  let lastQ=initialGame.currentQ;
-  hasAnswered=false;
-
-  // Attach the leaderboard listener once (not on every question render).
-  if(!playersListenerAttached){
-    playersListenerAttached = true;
-    gameRef.child('players').on('value', snap=>{ latestPlayers = snap.val()||{}; renderPlayerLeaderboard(); });
+  try {
+    const { playerId } = await apiPost({ action:'join', pin, name });
+    myPlayerId = playerId; myPlayerName = name; gamePin = pin; isHost = false;
+    lastQ = -1; lastRevealed = false; hasAnswered = false;
+    showScreen('screen-player');
+    document.getElementById('player-name-display').textContent = name;
+    startPlayerPolling();
+  } catch(e) {
+    err.textContent = e.message || 'Could not join.'; err.style.display='';
   }
-
-  if(initialGame.state==='lobby') renderPlayerWaiting();
-  else if(initialGame.state==='playing') renderPlayerQuestion(initialGame, lastQ, hasAnswered);
-
-  gameRef.on('value', snap=>{
-    const game=snap.val();
-    if(!game) return;
-    if(game.state==='gameover'){ renderPlayerGameover(game); return; }
-    if(game.state==='lobby'){ renderPlayerWaiting(); return; }
-    if(game.currentQ!==lastQ){ lastQ=game.currentQ; hasAnswered=false; }
-    renderPlayerQuestion(game, lastQ, hasAnswered);
-  });
 }
 
-function renderPlayerLeaderboard() {
-  const lb=document.getElementById('player-lb');
-  if(!lb) return;
-  const sorted=Object.values(latestPlayers).sort((a,b)=>(b.pts||0)-(a.pts||0));
-  lb.innerHTML=`<h3>Leaderboard</h3>`+sorted.map((p,i)=>`
-    <div class="lb-row">
-      <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-      <span class="lb-name" style="${p.name===myPlayerName?'font-weight:700;color:var(--gold-dark)':''}">${p.name}${p.name===myPlayerName?' (you)':''}</span>
-      <span class="lb-pts" style="${p.name===myPlayerName?'color:var(--gold);':''}">${p.pts||0}</span>
-    </div>
-  `).join('');
+// ══════════════════════════════════════════
+//  PLAYER POLLING
+// ══════════════════════════════════════════
+function startPlayerPolling() { stopPolling(); refreshPlayer(); pollTimer = setInterval(refreshPlayer, 2000); }
+async function refreshPlayer() {
+  let g; try { g = await apiState(gamePin); } catch(e) { return; }
+  if(!g) return;
+  latestGame = g; latestPlayers = g.players || {};
+  if(g.settings){ ptsCorrect = g.settings.ptsCorrect||ptsCorrect; ptsBonus = g.settings.ptsBonus||ptsBonus; }
+  if(g.state==='gameover'){ stopPolling(); renderPlayerGameover(g); return; }
+  if(g.state==='lobby'){ renderPlayerWaiting(); lastQ=-1; return; }
+  const revealed = !!g.answerRevealed;
+  if(g.currentQ!==lastQ || revealed!==lastRevealed){
+    if(g.currentQ!==lastQ) hasAnswered=false;
+    lastQ = g.currentQ; lastRevealed = revealed;
+    renderPlayerQuestion(g);
+  } else {
+    renderPlayerLeaderboard();
+  }
 }
 
 function renderPlayerWaiting() {
@@ -792,107 +675,102 @@ function renderPlayerWaiting() {
   `;
 }
 
-function renderPlayerQuestion(game, qIdx, answered, onAnswer) {
-  const qData=game.questions[qIdx];
+function renderPlayerQuestion(g) {
+  const qIdx = g.currentQ;
+  const qData = g.questions[qIdx];
   if(!qData) return;
-  const revealed=game.answerRevealed;
+  const revealed = !!g.answerRevealed;
+  const myAns = (g.answers && g.answers[qIdx] && g.answers[qIdx][myPlayerId]) || null;
+  const answered = !!myAns || hasAnswered;
   const optBadgeColors=['#E6F1FB','#EEEDFE','#FAECE7','#FAEEDA'];
   const optTextColors=['#185FA5','#534AB7','#D85A30','#BA7517'];
   const optLetters=['A','B','C','D'];
   document.getElementById('player-body').innerHTML=`
-    <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;text-align:right">Question ${qIdx+1} of ${game.questions.length}</p>
+    <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;text-align:right">Question ${qIdx+1} of ${g.questions.length}</p>
     <div class="player-q-card">
       <p class="player-q-meta"><span>Choose the correct answer</span><span style="background:var(--gold-light);color:var(--gold-dark);padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600">⚡ Fast = bonus pts</span></p>
-      <p class="player-q-text">${qData.q}</p>
+      <p class="player-q-text">${esc(qData.q)}</p>
       <div class="player-options" id="player-options">
         ${qData.options.map((opt,j)=>{
           const letter=optLetters[j];
           let cls='player-option';
-          if(revealed){
-            if(letter===game.correctAnswer) cls+=' revealed-correct';
-          }
-          return `<button class="player-option ${answered||revealed?'':'hoverable'}" id="popt-${letter}"
+          if(revealed && letter===g.correctAnswer) cls+=' revealed-correct';
+          if(myAns && myAns.choice===letter && !revealed) cls+=' selected';
+          if(revealed && myAns && myAns.choice===letter){ cls += (letter===g.correctAnswer ? ' correct' : ' wrong'); }
+          return `<button class="${cls}" id="popt-${letter}"
             onclick="submitChoice('${letter}',${qIdx})"
             ${answered||revealed?'disabled':''}
             style="border-radius:var(--radius-sm);">
             <span class="opt-badge" style="background:${optBadgeColors[j]};color:${optTextColors[j]};width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${letter}</span>
-            <span class="opt-text-player">${opt.replace(/^[ABCD]: /,'')}</span>
+            <span class="opt-text-player">${esc(opt.replace(/^[ABCD]: /,''))}</span>
           </button>`;
         }).join('')}
       </div>
-      ${qData.fact&&revealed?`<div style="background:var(--gold-light);border-radius:var(--radius-sm);padding:12px;font-size:13px;color:var(--gold-dark);margin-top:12px;">💡 ${qData.fact}</div>`:''}
+      ${qData.fact&&revealed?`<div style="background:var(--gold-light);border-radius:var(--radius-sm);padding:12px;font-size:13px;color:var(--gold-dark);margin-top:12px;">💡 ${esc(qData.fact)}</div>`:''}
     </div>
     <div class="result-banner" id="result-banner"></div>
-    <div class="player-lb" id="player-lb"><h3>Leaderboard</h3><p style="font-size:13px;color:var(--gray-400)">Loading…</p></div>
+    <div class="player-lb" id="player-lb"><h3>Leaderboard</h3></div>
   `;
-
-  // If already answered this round, show waiting state
-  if(answered){
-    gameRef.child('answers/'+qIdx+'/'+myPlayerKey).once('value', snap=>{
-      const myAns=snap.val();
-      if(myAns&&revealed&&game.correctAnswer){
-        showPlayerResult(myAns.choice, game.correctAnswer, game.settings);
-      } else if(myAns){
-        const banner=document.getElementById('result-banner');
-        if(banner){ banner.className='result-banner waiting visible'; banner.innerHTML='<strong>⏳ Answer submitted!</strong><span>Waiting for the host to reveal…</span>'; }
-        const selBtn=document.getElementById('popt-'+myAns.choice);
-        if(selBtn) selBtn.classList.add('selected');
-      }
-    });
+  const banner = document.getElementById('result-banner');
+  if(revealed && myAns){
+    showPlayerResult(myAns.choice, g.correctAnswer);
+  } else if(answered){
+    if(banner){ banner.className='result-banner waiting visible'; banner.innerHTML='<strong>⏳ Answer locked in!</strong><span>Waiting for the host to reveal the answer…</span>'; }
   }
-
-  // Live leaderboard (data comes from the single players listener in listenAsPlayer)
   renderPlayerLeaderboard();
 }
 
-async function submitChoice(letter, qIdx) {
-  hasAnswered=true;
-  const btn=document.getElementById('popt-'+letter);
-  if(btn) btn.classList.add('selected');
-  document.querySelectorAll('.player-option').forEach(b=>b.disabled=true);
-  await gameRef.child('answers/'+qIdx+'/'+myPlayerKey).set({ name:myPlayerName, choice:letter, ts: Date.now() });
-  const banner=document.getElementById('result-banner');
-  if(banner){ banner.className='result-banner waiting visible'; banner.innerHTML='<strong>⏳ Answer locked in!</strong><span>Waiting for the host to reveal the answer…</span>'; }
-  // Check if answer already revealed
-  gameRef.child('correctAnswer').once('value', snap=>{
-    const correct=snap.val();
-    if(correct) showPlayerResult(letter, correct, null);
-  });
+function renderPlayerLeaderboard() {
+  const lb = document.getElementById('player-lb');
+  if(!lb) return;
+  const sorted = Object.values(latestPlayers).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  lb.innerHTML = `<h3>Leaderboard</h3>` + sorted.map((p,i)=>`
+    <div class="lb-row">
+      <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+      <span class="lb-name" style="${p.name===myPlayerName?'font-weight:700;color:var(--gold-dark)':''}">${esc(p.name)}${p.name===myPlayerName?' (you)':''}</span>
+      <span class="lb-pts" style="${p.name===myPlayerName?'color:var(--gold);':''}">${p.pts||0}</span>
+    </div>
+  `).join('');
 }
 
-function showPlayerResult(choice, correct, settings) {
-  const isCorrect=choice===correct;
-  const banner=document.getElementById('result-banner');
+async function submitChoice(letter, qIdx) {
+  if(hasAnswered) return;
+  hasAnswered = true;
+  const btn = document.getElementById('popt-'+letter);
+  if(btn) btn.classList.add('selected');
+  document.querySelectorAll('.player-option').forEach(b=>b.disabled=true);
+  const banner = document.getElementById('result-banner');
+  if(banner){ banner.className='result-banner waiting visible'; banner.innerHTML='<strong>⏳ Answer locked in!</strong><span>Waiting for the host to reveal the answer…</span>'; }
+  try { await apiPost({ action:'answer', pin:gamePin, qIdx, playerId:myPlayerId, name:myPlayerName, choice:letter }); } catch(e) {}
+}
+
+function showPlayerResult(choice, correct) {
+  const isCorrect = choice===correct;
+  const banner = document.getElementById('result-banner');
   if(isCorrect){
     if(banner){ banner.className='result-banner correct visible'; banner.innerHTML=`<strong>🎉 Correct!</strong><span>+${ptsCorrect} points (plus any speed bonus)</span>`; }
-    const btn=document.getElementById('popt-'+choice);
-    if(btn) btn.className='player-option correct';
   } else {
-    if(banner){ banner.className='result-banner wrong visible'; banner.innerHTML=`<strong>❌ Not quite!</strong><span>You chose ${choice} — the correct answer was ${correct}</span>`; }
-    const wrongBtn=document.getElementById('popt-'+choice);
-    if(wrongBtn) wrongBtn.className='player-option wrong';
-    const rightBtn=document.getElementById('popt-'+correct);
-    if(rightBtn) rightBtn.className='player-option revealed-correct';
+    if(banner){ banner.className='result-banner wrong visible'; banner.innerHTML=`<strong>❌ Not quite!</strong><span>You chose ${esc(choice)} — the correct answer was ${esc(correct)}</span>`; }
   }
 }
 
-function renderPlayerGameover(game) {
-  const players=game.players||{};
-  const sorted=Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
-  const winner=sorted[0]||{name:'Nobody',pts:0};
-  const myEntry=sorted.find(p=>p.name===myPlayerName);
-  const myRank=sorted.findIndex(p=>p.name===myPlayerName)+1;
+function renderPlayerGameover(g) {
+  const players = g.players||{};
+  const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  const winner = sorted[0]||{name:'Nobody',pts:0};
+  const myEntry = sorted.find(p=>p.name===myPlayerName);
+  const myRank = sorted.findIndex(p=>p.name===myPlayerName)+1;
   document.getElementById('player-body').innerHTML=`
     <div class="gameover-card">
       <div class="trophy">🏆</div>
-      <h2>${winner.name} wins!</h2>
+      <h2>${esc(winner.name)} wins!</h2>
       <p class="winner-sub">${winner.pts} points</p>
       ${myEntry?`<p style="font-size:14px;margin-bottom:1rem;color:var(--gray-700)">You finished <strong>#${myRank}</strong> with <strong>${myEntry.pts||0} points</strong></p>`:''}
       <div class="final-lb">
         ${sorted.map((p,i)=>`
           <div class="final-row ${p.name===myPlayerName?'me':''}">
             <span class="final-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-            <span class="final-name">${p.name}${p.name===myPlayerName?' (you)':''}</span>
+            <span class="final-name">${esc(p.name)}${p.name===myPlayerName?' (you)':''}</span>
             <span class="final-pts">${p.pts||0} pts</span>
           </div>
         `).join('')}
@@ -903,33 +781,21 @@ function renderPlayerGameover(game) {
 }
 
 // ══════════════════════════════════════════
-//  INIT — restore saved URL & handle join links
+//  INIT — handle ?#join=PIN links
 // ══════════════════════════════════════════
-function parseJoinHash() {
-  const h = location.hash.replace(/^#/, '');
-  if (!h) return null;
-  const params = new URLSearchParams(h);
-  if (!params.has('join')) return null;
-  return { pin: (params.get('join') || '').toUpperCase(), db: params.get('db') || '' };
-}
-
 window.addEventListener('DOMContentLoaded', () => {
-  let savedUrl = '';
-  try { savedUrl = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {}
-  if (!savedUrl) savedUrl = DEFAULT_FB_URL;   // works out of the box; override anytime
-
-  const join = parseJoinHash();
-  if (join) {
-    if (join.db) { savedUrl = join.db; try { localStorage.setItem(FB_URL_KEY, join.db); } catch(e) {} }
-    fbUrl = savedUrl || fbUrl;
-    document.getElementById('join-pin').value = join.pin;
-    document.getElementById('join-name').focus();
+  const launchBtn = document.getElementById('launch-btn');
+  if (launchBtn) launchBtn.disabled = false;
+  const h = location.hash.replace(/^#/, '');
+  if (h) {
+    const params = new URLSearchParams(h);
+    if (params.has('join')) {
+      document.getElementById('join-pin').value = (params.get('join') || '').toUpperCase();
+      document.getElementById('join-name').focus();
+    }
   }
-
-  // Pre-fill the host's Firebase URL field so it only has to be entered once.
-  const input = document.getElementById('firebase-url-input');
-  if (input && savedUrl) { input.value = savedUrl; testFirebase(); }
 });
+
 </script>
 </body>
 </html>

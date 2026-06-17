@@ -9,8 +9,6 @@
   :root {
     --green: #1D9E75; --green-dark: #085041; --green-light: #E1F5EE;
     --gold: #BA7517; --gold-dark: #633806; --gold-light: #FAEEDA; --gold-mid: #EF9F27;
-    --blue: #185FA5; --blue-light: #E6F1FB;
-    --red: #A32D2D; --red-light: #FCEBEB;
     --gray-50: #F8F8F7; --gray-100: #F0EFE9; --gray-200: #D3D1C7;
     --gray-400: #888780; --gray-700: #444441; --gray-900: #2C2C2A;
     --radius: 14px; --radius-sm: 8px;
@@ -22,16 +20,6 @@
   .hero .emoji { font-size: 56px; margin-bottom: .5rem; }
   .hero h1 { font-family: 'Fraunces', serif; font-size: 36px; margin-bottom: 6px; }
   .hero p { font-size: 15px; color: var(--gray-700); line-height: 1.6; }
-  .fb-panel { background: var(--blue-light); border: 1px solid #B5D4F4; border-radius: var(--radius); padding: 18px; margin-bottom: 1.5rem; }
-  .fb-panel h3 { font-size: 14px; font-weight: 600; color: var(--blue); margin-bottom: 6px; }
-  .fb-panel p { font-size: 13px; color: var(--blue); line-height: 1.6; margin-bottom: 8px; }
-  .fb-panel ol { font-size: 13px; color: var(--blue); line-height: 1.8; padding-left: 18px; margin-bottom: 10px; }
-  .fb-panel input { width: 100%; border: 1px solid #B5D4F4; border-radius: var(--radius-sm); padding: 9px 11px; font-size: 13px; font-family: monospace; color: var(--gray-900); background: #fff; outline: none; }
-  .fb-panel input:focus { border-color: var(--blue); }
-  .fb-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; margin-top: 10px; }
-  .fb-status.ok { background: var(--green-light); color: var(--green-dark); }
-  .fb-status.err { background: var(--red-light); color: var(--red); }
-  .fb-status.pending { background: var(--gold-light); color: var(--gold); }
   .games { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .game-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 1.5rem; text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 8px; transition: transform .12s, box-shadow .12s, border-color .12s; }
   .game-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.08); border-color: var(--gold-mid); }
@@ -49,19 +37,7 @@
     <div class="hero">
       <div class="emoji">👨‍👧‍👦</div>
       <h1>Dad Trivia Night</h1>
-      <p>Two party games for your crew. Host on one screen, everyone else plays on their phones.</p>
-    </div>
-
-    <div class="fb-panel">
-      <h3>🔥 One-time Firebase setup</h3>
-      <p>These games sync live across devices using a free Firebase Realtime Database. Set it up once — it's remembered on this device and shared by both games.</p>
-      <ol>
-        <li>Go to <strong>console.firebase.google.com</strong> → create a project (skip Analytics)</li>
-        <li>Open <strong>Realtime Database</strong> → Create database → start in <strong>test mode</strong></li>
-        <li>Copy the database URL and paste it here:</li>
-      </ol>
-      <input type="text" id="fb-url" placeholder="https://your-project-default-rtdb.firebaseio.com" oninput="saveUrl()">
-      <div id="fb-status" class="fb-status pending">⏳ No database URL saved yet</div>
+      <p>Two party games for your crew. Host on one screen, everyone else plays on their phones — no setup, just a PIN.</p>
     </div>
 
     <div class="games">
@@ -79,34 +55,7 @@
       </a>
     </div>
 
-    <footer>Tip: the host clicks "Host a game" inside a game; players use the shareable join link or the PIN.</footer>
+    <footer>Host clicks "Host a game" inside a game to get a PIN and a shareable join link. Players enter the PIN or tap the link.</footer>
   </div>
-
-<script>
-  const FB_URL_KEY = 'dadtrivia_fb_url';
-  const DEFAULT_FB_URL = 'https://dad-trivia-default-rtdb.firebaseio.com';
-  const input = document.getElementById('fb-url');
-  const status = document.getElementById('fb-status');
-
-  function render(url) {
-    if (!url) { status.className = 'fb-status pending'; status.textContent = '⏳ No database URL saved yet'; return; }
-    if (!url.includes('firebaseio.com')) { status.className = 'fb-status err'; status.textContent = "❌ That doesn't look like a Firebase URL"; return; }
-    status.className = 'fb-status ok'; status.textContent = '✅ Saved — both games will use this';
-  }
-
-  function saveUrl() {
-    const url = input.value.trim();
-    try { if (url) localStorage.setItem(FB_URL_KEY, url); else localStorage.removeItem(FB_URL_KEY); } catch(e) {}
-    render(url);
-  }
-
-  window.addEventListener('DOMContentLoaded', () => {
-    let saved = '';
-    try { saved = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {}
-    if (!saved) { saved = DEFAULT_FB_URL; try { localStorage.setItem(FB_URL_KEY, saved); } catch(e) {} }
-    input.value = saved;
-    render(saved);
-  });
-</script>
 </body>
 </html>
