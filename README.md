@@ -1,63 +1,59 @@
 # Dad Trivia Night 🎉
 
 Two browser-based party games for game night. One person **hosts** on a big
-screen; everyone else **joins from their phones**. The games sync live across
-devices through a free Firebase Realtime Database.
+screen; everyone else **joins from their phones**. State syncs across devices
+through a small Vercel serverless API backed by **Vercel KV (Upstash Redis)**.
 
 | File | Game | How it works |
 |------|------|--------------|
-| `index.html` | Launcher | Pick a game and save your Firebase URL once |
+| `index.html` | Launcher | Pick a game |
 | `dad-facts-quiz.html` | **Dad Facts Quiz** | Multiple choice; answer fast for a speed bonus |
 | `dad-trivia-game.html` | **Guess the Dad** | Read the joke, type which dad told it |
+| `api/game.js` | Backend | One serverless function: create / join / answer / update / score / snapshot |
 
-Each game file is fully self-contained (HTML + CSS + JS, no build step).
+There's no Firebase and nothing to paste — players just need the PIN or join link.
 
-## Running it
+## Architecture
 
-These are static files. The easiest options:
+- **Frontend:** static HTML/CSS/JS (no build step).
+- **Backend:** a single Vercel serverless function at `/api/game` storing each
+  game under keys `game:<PIN>:*` in Redis, with a 4-hour TTL.
+- **Realtime:** clients poll `GET /api/game?pin=…` every ~2 seconds. Simple and
+  robust for a trivia game; no WebSockets needed.
 
-**Locally with a quick server** (recommended — clipboard + join links work best over `http`):
+## Deploy on Vercel
+
+1. **Import the repo** into Vercel (no framework preset — it deploys as static
+   files plus the `/api` function automatically).
+2. **Add a database:** in the project, go to **Storage → Create Database →
+   KV (Upstash Redis)** and connect it to the project. This injects the
+   credentials the API needs (`KV_REST_API_URL` / `KV_REST_API_TOKEN`, or the
+   Upstash equivalents — the function accepts either).
+3. **Redeploy** so the function picks up the new env vars.
+4. Open your Vercel URL → **Host a game** → share the PIN or **Copy join link**.
+
+> If the API returns *"Database not configured"*, the KV store isn't connected
+> yet — finish step 2 and redeploy.
+
+## Run locally
+
+Use the Vercel CLI so the `/api` function runs too:
 
 ```bash
-cd dadtrivia
-python3 -m http.server 8000
-# then open http://localhost:8000/ in your browser
+npm install
+npm i -g vercel
+vercel dev      # then open http://localhost:3000
 ```
 
-(Any static server works — e.g. `npx serve` if you prefer Node.)
+Set `KV_REST_API_URL` and `KV_REST_API_TOKEN` (e.g. in `.env.local`, or pull
+them with `vercel env pull`) so the function can reach your store.
 
-**Or just open the file**: double-click `index.html`. This works for a single
-machine, but to actually play across phones you need the files hosted somewhere
-every device can reach — see below.
-
-## Playing across devices (the real party setup)
-
-Phones can't open another machine's `file://` or `localhost`, so to play
-together, host the files somewhere public. **GitHub Pages** is free and easy:
-
-1. Push this repo to GitHub.
-2. Repo **Settings → Pages → Build from branch**, pick the branch and `/root`.
-3. Open the published URL (e.g. `https://<you>.github.io/dadtrivia/`).
-
-Then:
-
-1. **Firebase works out of the box** — a shared Realtime Database is built in,
-   so you can host and play immediately. To use your own instead, paste its URL
-   on the launcher page (`index.html`); it's saved in the browser and shared by
-   both games.
-   - Create a project at <https://console.firebase.google.com> (skip Analytics).
-   - Add a **Realtime Database** and start it in **test mode**.
-   - Copy the database URL (`https://your-project-default-rtdb.firebaseio.com`).
-2. Open a game and click **Host a game**. The URL is pre-filled; launch the lobby.
-3. Hit **Copy join link** and send it to your players. The link drops them
-   straight into the game — no PIN typing, no URL pasting. (They can still join
-   manually with the 6-character PIN if they prefer.)
-4. Start the game and play.
+Opening the HTML files directly (`file://`) or via a plain static server will
+show the UI, but hosting/joining won't work without the `/api` function.
 
 ## Notes
 
-- **Test mode** Firebase rules are open to anyone with the URL, which is fine
-  for a casual game night. For anything longer-lived, lock down the rules.
-- Games auto-delete from the database 4 hours after launch.
-- The Firebase URL is stored only in your browser's `localStorage`, never
-  committed to the repo.
+- Games auto-expire from the database 4 hours after they're created.
+- Point scoring (speed bonus for the quiz, exact-match award for Guess the Dad)
+  is computed by the host's browser, which then tells the API how many points to
+  add — so correct answers aren't sent to players' devices ahead of the reveal.

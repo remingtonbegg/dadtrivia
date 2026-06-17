@@ -243,19 +243,6 @@
   </div>
   <div class="setup-body">
 
-    <div class="firebase-panel" id="firebase-panel">
-      <h3>🔥 Firebase setup (one time)</h3>
-      <p>This game needs a free Firebase project for real-time sync. Takes about 2 minutes:</p>
-      <ol>
-        <li>Go to <strong>console.firebase.google.com</strong> → Create project (skip Analytics)</li>
-        <li>Click <strong>Realtime Database</strong> in the left menu → Create database → Start in <strong>test mode</strong> → Enable</li>
-        <li>Copy your database URL (looks like <code>https://your-project-default-rtdb.firebaseio.com</code>)</li>
-        <li>Paste it below:</li>
-      </ol>
-      <input type="text" id="firebase-url-input" placeholder="https://your-project-default-rtdb.firebaseio.com" oninput="testFirebase()">
-      <div id="firebase-status" class="firebase-status pending">⏳ Waiting for URL</div>
-    </div>
-
     <div class="setup-tabs">
       <button class="setup-tab active" onclick="setupTab('questions')">Questions (7)</button>
       <button class="setup-tab" onclick="setupTab('settings')">Settings</button>
@@ -321,11 +308,10 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
+
 // ══════════════════════════════════════════
-//  DATA
+//  DATA  (host-side; includes answers)
 // ══════════════════════════════════════════
 let questions = [
   { q: "Guess the dad behind this joke.\n\nWhat's cheese that's not yours?\n\nNACHO CHEESE", a: "Kevin", hint: "This dad DIY'd his porch into the office he works out of." },
@@ -340,106 +326,37 @@ let questions = [
 // ══════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════
-let db = null;
-let gamePin = null;
-let gameRef = null;
-let isHost = false;
-let myPlayerName = null;
-let myPlayerKey = null;
-let currentQIndex = 0;
-let timerInterval = null;
-let timerSecs = 60;
-let ptsPerQ = 1;
-let answerRevealed = false;
-let firebaseReady = false;
-let unsubscribers = [];
-let fbUrl = null;                 // active Firebase database URL
-let hasAnswered = false;          // whether I've submitted a guess this question
-let latestPlayers = {};           // last-known players snapshot (for the player leaderboard)
-let playersListenerAttached = false;
-const awardedQs = {};             // guards against double-awarding points
-const FB_URL_KEY = 'dadtrivia_fb_url';
-const DEFAULT_FB_URL = 'https://dad-trivia-default-rtdb.firebaseio.com';
+let gamePin = null, isHost = false, myPlayerName = null, myPlayerId = null;
+let currentQIndex = 0, timerInterval = null, timerSecs = 60, ptsPerQ = 1;
+let answerRevealed = false, hasAnswered = false;
+let latestPlayers = {}, latestGame = null;
+let lastQ = -1, lastHint = false, lastReveal = false, pollTimer = null;
+const awardedQs = {};
 
 // ══════════════════════════════════════════
-//  FIREBASE INIT
+//  API  (Vercel serverless + KV/Redis)
 // ══════════════════════════════════════════
-let firebaseApp = null;
-
-function initFirebase(url) {
-  if (firebaseApp) {
-    try { firebaseApp.delete(); } catch(e) {}
-  }
-  try {
-    firebaseApp = firebase.initializeApp({ databaseURL: url }, 'trivia-' + Date.now());
-    db = firebase.database(firebaseApp);
-    fbUrl = url;
-    return true;
-  } catch(e) {
-    return false;
-  }
+const API = '/api/game';
+async function apiPost(payload) {
+  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
 }
-
-let testTimeout = null;
-function testFirebase() {
-  const url = document.getElementById('firebase-url-input').value.trim();
-  const status = document.getElementById('firebase-status');
-  const launchBtn = document.getElementById('launch-btn');
-  firebaseReady = false;
-  launchBtn.disabled = true;
-  if (!url || !url.includes('firebaseio.com')) {
-    status.className = 'firebase-status pending';
-    status.textContent = '⏳ Waiting for valid URL';
-    return;
-  }
-  status.className = 'firebase-status pending';
-  status.textContent = '⏳ Testing connection…';
-  clearTimeout(testTimeout);
-  testTimeout = setTimeout(() => {
-    if (!initFirebase(url)) {
-      status.className = 'firebase-status err';
-      status.textContent = '❌ Invalid URL format';
-      return;
-    }
-    const testRef = db.ref('.info/connected');
-    const unsub = testRef.on('value', snap => {
-      testRef.off('value', unsub);
-      if (snap.val() === true) {
-        status.className = 'firebase-status ok';
-        status.textContent = '✅ Connected — ready to launch!';
-        firebaseReady = true;
-        launchBtn.disabled = false;
-        try { localStorage.setItem(FB_URL_KEY, url); } catch(e) {}
-      } else {
-        status.className = 'firebase-status err';
-        status.textContent = '❌ Could not connect. Check your URL.';
-      }
-    });
-    setTimeout(() => {
-      if (!firebaseReady) {
-        status.className = 'firebase-status err';
-        status.textContent = '❌ Timed out. Check URL or database rules.';
-      }
-    }, 6000);
-  }, 600);
+async function apiState(pin) {
+  const r = await fetch(API + '?pin=' + encodeURIComponent(pin));
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
 }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
 // ══════════════════════════════════════════
 //  SCREENS
 // ══════════════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-function showHostSetup() {
-  showScreen('screen-setup');
-  renderQList();
-}
-
-// ══════════════════════════════════════════
-//  SETUP TABS
-// ══════════════════════════════════════════
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function showHostSetup() { showScreen('screen-setup'); renderQList(); }
 function setupTab(name) {
   document.querySelectorAll('.setup-tab').forEach((t,i) => t.classList.toggle('active', ['questions','settings'][i]===name));
   document.getElementById('setup-questions').style.display = name==='questions'?'':'none';
@@ -462,10 +379,10 @@ function renderQList() {
         <button class="del-btn" onclick="deleteQ(${i})" title="Delete">✕</button>
       </div>
       <div class="q-lbl">Joke / Question</div>
-      <textarea rows="4" oninput="questions[${i}].q=this.value">${q.q}</textarea>
+      <textarea rows="4" oninput="questions[${i}].q=this.value">${esc(q.q)}</textarea>
       <div class="q-row">
-        <div><div class="q-lbl">Answer (dad's name)</div><input type="text" value="${q.a}" oninput="questions[${i}].a=this.value"></div>
-        <div><div class="q-lbl">Hint (optional)</div><input type="text" value="${q.hint||''}" oninput="questions[${i}].hint=this.value"></div>
+        <div><div class="q-lbl">Answer (dad's name)</div><input type="text" value="${esc(q.a)}" oninput="questions[${i}].a=this.value"></div>
+        <div><div class="q-lbl">Hint (optional)</div><input type="text" value="${esc(q.hint||'')}" oninput="questions[${i}].hint=this.value"></div>
       </div>
     `;
     list.appendChild(card);
@@ -478,55 +395,28 @@ function deleteQ(i) { questions.splice(i,1); renderQList(); }
 function addQuestion() { if(questions.length<14){ questions.push({q:'',a:'',hint:''}); renderQList(); } }
 
 // ══════════════════════════════════════════
-//  GENERATE PIN
-// ══════════════════════════════════════════
-function genPin() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
-}
-
-// ══════════════════════════════════════════
 //  LAUNCH LOBBY (HOST)
 // ══════════════════════════════════════════
 async function launchLobby() {
-  if (!firebaseReady) { alert('Please connect Firebase first.'); return; }
   timerSecs = parseInt(document.getElementById('timer-secs').value)||0;
   ptsPerQ = parseInt(document.getElementById('pts-per-q').value)||1;
-
-  gamePin = genPin();
-  gameRef = db.ref('games/' + gamePin);
-
-  const gameData = {
-    state: 'lobby',
-    currentQ: -1,
-    answerRevealed: false,
-    hintRevealed: false,
-    questions: questions.map(q => ({ q: q.q, hint: q.hint||'' })),
-    answers: {},
-    players: {},
-    settings: { timerSecs, ptsPerQ },
-    createdAt: Date.now()
-  };
-  await gameRef.set(gameData);
-
-  // Clean up after 4 hours
-  setTimeout(() => { if(gameRef) gameRef.remove(); }, 4 * 60 * 60 * 1000);
-
-  isHost = true;
-  showScreen('screen-host');
-  document.getElementById('host-pin-badge').textContent = 'PIN: ' + gamePin;
-  renderHostLobby();
-  listenAsHost();
+  const launchBtn = document.getElementById('launch-btn');
+  launchBtn.disabled = true;
+  try {
+    const sanitized = questions.map(q => ({ q:q.q, hint:q.hint||'' }));
+    const { pin } = await apiPost({ action:'create', questions:sanitized, settings:{ timerSecs, ptsPerQ } });
+    gamePin = pin; isHost = true;
+    showScreen('screen-host');
+    document.getElementById('host-pin-badge').textContent = 'PIN: ' + pin;
+    renderHostLobby();
+    startHostPolling();
+  } catch(e) {
+    alert('Could not create the game: ' + e.message);
+    launchBtn.disabled = false;
+  }
 }
 
-// ══════════════════════════════════════════
-//  HOST LOBBY RENDER
-// ══════════════════════════════════════════
-function buildJoinLink() {
-  const base = location.origin + location.pathname;
-  return base + '#join=' + encodeURIComponent(gamePin) + '&db=' + encodeURIComponent(fbUrl || '');
-}
-
+function buildJoinLink() { return location.origin + location.pathname + '#join=' + encodeURIComponent(gamePin); }
 function copyJoinLink() {
   const link = buildJoinLink();
   const done = () => { const b = document.getElementById('copy-link-btn'); if (b) { b.textContent = '✅ Copied!'; setTimeout(() => { b.textContent = '📋 Copy join link'; }, 1800); } };
@@ -552,51 +442,34 @@ function renderHostLobby() {
 }
 
 // ══════════════════════════════════════════
-//  HOST LISTEN
+//  HOST POLLING
 // ══════════════════════════════════════════
-function listenAsHost() {
-  unsubscribers.forEach(u => u());
-  unsubscribers = [];
-
-  const playersRef = gameRef.child('players');
-  playersRef.on('value', snap => {
-    const players = snap.val() || {};
-    const names = Object.values(players).map(p => p.name).filter(Boolean);
-    document.getElementById('host-player-count').textContent = names.length + ' player' + (names.length!==1?'s':'');
-    const chips = document.getElementById('lobby-chips');
-    if (chips) {
-      chips.innerHTML = names.length
-        ? names.map(n => `<span class="player-chip">${n}</span>`).join('')
-        : '<p style="font-size:13px;color:var(--gray-400);margin-top:8px">Waiting for players…</p>';
-    }
-    renderLeaderboard(players);
-  });
-
-  const answersRef = gameRef.child('answers');
-  answersRef.on('value', snap => {
-    const allAnswers = snap.val() || {};
-    const qAnswers = allAnswers[currentQIndex] || {};
-    renderAnswersList(qAnswers);
-  });
-
-  unsubscribers.push(() => playersRef.off());
-  unsubscribers.push(() => answersRef.off());
+function startHostPolling() { stopPolling(); refreshHost(); pollTimer = setInterval(refreshHost, 2000); }
+async function refreshHost() {
+  let g; try { g = await apiState(gamePin); } catch(e) { return; }
+  if (!g) return;
+  latestGame = g;
+  const players = g.players || {};
+  const names = Object.values(players).map(p => p.name).filter(Boolean);
+  const countEl = document.getElementById('host-player-count');
+  if (countEl) countEl.textContent = names.length + ' player' + (names.length!==1?'s':'');
+  const chips = document.getElementById('lobby-chips');
+  if (chips) chips.innerHTML = names.length ? names.map(n => `<span class="player-chip">${esc(n)}</span>`).join('') : '<p style="font-size:13px;color:var(--gray-400);margin-top:8px">Waiting for players…</p>';
+  renderLeaderboard(players);
+  const ans = (g.answers && g.answers[currentQIndex]) || {};
+  renderAnswersList(ans, answerRevealed);
 }
 
 // ══════════════════════════════════════════
 //  START GAME
 // ══════════════════════════════════════════
 async function startGame() {
-  currentQIndex = 0;
-  answerRevealed = false;
-  await gameRef.update({ state: 'playing', currentQ: 0, answerRevealed: false, hintRevealed: false });
+  currentQIndex = 0; answerRevealed = false;
+  await apiPost({ action:'update', pin:gamePin, patch:{ state:'playing', currentQ:0, answerRevealed:false, hintRevealed:false, answer:null } });
   renderHostQuestion();
   startHostTimer();
 }
 
-// ══════════════════════════════════════════
-//  HOST QUESTION RENDER
-// ══════════════════════════════════════════
 function renderHostQuestion() {
   answerRevealed = false;
   const q = questions[currentQIndex];
@@ -608,9 +481,9 @@ function renderHostQuestion() {
     ${timerSecs > 0 ? `<div class="timer-bar-wrap"><div class="timer-bar-fill" id="host-timer-bar" style="width:100%"></div></div><p id="host-timer-txt" style="font-size:12px;color:var(--gray-400);text-align:center;margin-bottom:10px">${timerSecs}s</p>` : ''}
     <div class="q-display-card">
       <p class="q-counter">Question ${currentQIndex+1} of ${questions.length}</p>
-      <p class="q-text">${q.q}</p>
-      ${q.hint ? `<div class="hint-reveal-box" id="hint-box">💡 ${q.hint}</div>` : ''}
-      <div class="reveal-answer-box" id="answer-box">👨 ${q.a}</div>
+      <p class="q-text">${esc(q.q)}</p>
+      ${q.hint ? `<div class="hint-reveal-box" id="hint-box">💡 ${esc(q.hint)}</div>` : ''}
+      <div class="reveal-answer-box" id="answer-box">👨 ${esc(q.a)}</div>
       <div class="btn-row" style="justify-content:center;margin-top:1rem">
         ${q.hint ? `<button class="btn btn-secondary" id="hint-btn" onclick="hostRevealHint()">Show hint</button>` : ''}
         <button class="btn btn-secondary" id="reveal-btn" onclick="hostRevealAnswer()">Reveal answer</button>
@@ -625,62 +498,52 @@ function renderHostQuestion() {
 }
 
 function hostRevealHint() {
-  document.getElementById('hint-box').classList.add('visible');
-  document.getElementById('hint-btn').style.display = 'none';
-  gameRef.update({ hintRevealed: true });
+  const box = document.getElementById('hint-box'); if(box) box.classList.add('visible');
+  const btn = document.getElementById('hint-btn'); if(btn) btn.style.display = 'none';
+  apiPost({ action:'update', pin:gamePin, patch:{ hintRevealed:true } }).catch(()=>{});
 }
 
-function hostRevealAnswer() {
+async function hostRevealAnswer() {
   answerRevealed = true;
   clearInterval(timerInterval);
-  document.getElementById('answer-box').classList.add('visible');
-  document.getElementById('reveal-btn').style.display = 'none';
-  const hBtn = document.getElementById('hint-btn');
-  if(hBtn) hBtn.style.display = 'none';
-  document.getElementById('award-btn').style.display = '';
-  gameRef.update({ answerRevealed: true, answer: questions[currentQIndex].a });
-  // Mark answers correct/wrong
-  gameRef.child('answers/' + currentQIndex).once('value', snap => {
-    const qAnswers = snap.val() || {};
-    renderAnswersList(qAnswers, true);
-  });
+  const ab = document.getElementById('answer-box'); if(ab) ab.classList.add('visible');
+  const rb = document.getElementById('reveal-btn'); if(rb) rb.style.display = 'none';
+  const hBtn = document.getElementById('hint-btn'); if(hBtn) hBtn.style.display = 'none';
+  const award = document.getElementById('award-btn'); if(award) award.style.display = '';
+  await apiPost({ action:'update', pin:gamePin, patch:{ answerRevealed:true, answer:questions[currentQIndex].a } });
+  let g; try { g = await apiState(gamePin); } catch(e) { g = latestGame; }
+  const ans = (g && g.answers && g.answers[currentQIndex]) || {};
+  renderAnswersList(ans, true);
 }
 
-function hostAwardPoints() {
-  if (awardedQs[currentQIndex]) return;   // already awarded for this question
+async function hostAwardPoints() {
+  if (awardedQs[currentQIndex]) return;
   awardedQs[currentQIndex] = true;
-  // Auto-award based on case-insensitive match
-  gameRef.child('answers/' + currentQIndex).once('value', snap => {
-    const qAnswers = snap.val() || {};
-    const correctAnswer = questions[currentQIndex].a.trim().toLowerCase();
-    const updates = {};
-    Object.entries(qAnswers).forEach(([key, val]) => {
-      if (val.guess && val.guess.trim().toLowerCase() === correctAnswer) {
-        updates['players/' + key + '/pts'] = firebase.database.ServerValue.increment(ptsPerQ);
-      }
-    });
-    if (Object.keys(updates).length) {
-      gameRef.update(updates);
-    }
+  let g; try { g = await apiState(gamePin); } catch(e) { g = latestGame; }
+  const ans = (g && g.answers && g.answers[currentQIndex]) || {};
+  const correctAnswer = questions[currentQIndex].a.trim().toLowerCase();
+  const updates = {};
+  Object.entries(ans).forEach(([id, val]) => {
+    if (val.guess && val.guess.trim().toLowerCase() === correctAnswer) updates[id] = ptsPerQ;
   });
-  document.getElementById('award-btn').textContent = '✅ Points awarded!';
-  document.getElementById('award-btn').disabled = true;
+  if (Object.keys(updates).length) { try { await apiPost({ action:'score', pin:gamePin, updates }); } catch(e) {} }
+  const award = document.getElementById('award-btn');
+  if(award){ award.textContent = '✅ Points awarded!'; award.disabled = true; }
 }
 
-function hostNextQ() {
+async function hostNextQ() {
   clearInterval(timerInterval);
   if (currentQIndex >= questions.length - 1) { hostGameOver(); return; }
-  currentQIndex++;
-  gameRef.update({ currentQ: currentQIndex, answerRevealed: false, hintRevealed: false, answer: null });
+  currentQIndex++; answerRevealed = false;
+  await apiPost({ action:'update', pin:gamePin, patch:{ currentQ:currentQIndex, answerRevealed:false, hintRevealed:false, answer:null } });
   renderHostQuestion();
   startHostTimer();
 }
-
-function hostPrevQ() {
+async function hostPrevQ() {
   clearInterval(timerInterval);
   if (currentQIndex > 0) {
-    currentQIndex--;
-    gameRef.update({ currentQ: currentQIndex, answerRevealed: false, hintRevealed: false, answer: null });
+    currentQIndex--; answerRevealed = false;
+    await apiPost({ action:'update', pin:gamePin, patch:{ currentQ:currentQIndex, answerRevealed:false, hintRevealed:false, answer:null } });
     renderHostQuestion();
     startHostTimer();
   }
@@ -694,15 +557,14 @@ function startHostTimer() {
     left--;
     const bar = document.getElementById('host-timer-bar');
     const txt = document.getElementById('host-timer-txt');
-    if (bar) bar.style.width = Math.max(0, (left/timerSecs)*100) + '%';
-    if (bar) bar.style.background = left <= 10 ? '#E24B4A' : '#1D9E75';
+    if (bar) { bar.style.width = Math.max(0, (left/timerSecs)*100) + '%'; bar.style.background = left <= 10 ? '#E24B4A' : '#1D9E75'; }
     if (txt) txt.textContent = left > 0 ? left + 's' : "Time's up!";
     if (left <= 0) { clearInterval(timerInterval); if(!answerRevealed) hostRevealAnswer(); }
   }, 1000);
 }
 
 // ══════════════════════════════════════════
-//  HOST LEADERBOARD
+//  HOST LEADERBOARD / ANSWERS
 // ══════════════════════════════════════════
 function renderLeaderboard(players) {
   const lb = document.getElementById('host-leaderboard');
@@ -712,7 +574,7 @@ function renderLeaderboard(players) {
   lb.innerHTML = sorted.map((p,i) => `
     <div class="lb-row">
       <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-      <span class="lb-name">${p.name}</span>
+      <span class="lb-name">${esc(p.name)}</span>
       <div class="lb-adj">
         <button onclick="adjustPts('${p.key}',1)">+</button>
         <button onclick="adjustPts('${p.key}',-1)">−</button>
@@ -722,13 +584,10 @@ function renderLeaderboard(players) {
   `).join('');
 }
 
-function adjustPts(key, delta) {
-  gameRef.child('players/' + key + '/pts').transaction(cur => Math.max(0, (cur||0) + delta * ptsPerQ));
+async function adjustPts(key, delta) {
+  try { await apiPost({ action:'score', pin:gamePin, updates:{ [key]: delta * ptsPerQ } }); refreshHost(); } catch(e) {}
 }
 
-// ══════════════════════════════════════════
-//  HOST ANSWERS LIST
-// ══════════════════════════════════════════
 function renderAnswersList(qAnswers, showCorrect) {
   const el = document.getElementById('host-answers');
   if (!el) return;
@@ -738,45 +597,45 @@ function renderAnswersList(qAnswers, showCorrect) {
   el.innerHTML = entries.map(a => {
     const isCorrect = correctAnswer && a.guess.trim().toLowerCase() === correctAnswer;
     const cls = showCorrect ? (isCorrect ? 'correct' : 'wrong') : '';
-    return `<div class="answer-item ${cls}"><span class="a-name">${a.name}</span><span class="a-guess">${a.guess}</span></div>`;
+    return `<div class="answer-item ${cls}"><span class="a-name">${esc(a.name)}</span><span class="a-guess">${esc(a.guess)}</span></div>`;
   }).join('');
 }
 
 // ══════════════════════════════════════════
 //  HOST GAME OVER
 // ══════════════════════════════════════════
-function hostGameOver() {
+async function hostGameOver() {
   clearInterval(timerInterval);
-  gameRef.update({ state: 'gameover' });
-  gameRef.child('players').once('value', snap => {
-    const players = snap.val() || {};
-    const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
-    const winner = sorted[0] || { name: 'Nobody', pts: 0 };
-    const main = document.getElementById('host-main');
-    main.innerHTML = `
-      <div class="gameover-card">
-        <div class="trophy">🏆</div>
-        <h2>${winner.name} wins!</h2>
-        <p class="winner-pts">${winner.pts} point${winner.pts!==1?'s':''}</p>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.5rem">
-          ${sorted.map((p,i)=>`
-            <div class="lb-row">
-              <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-              <span class="lb-name">${p.name}</span>
-              <span class="lb-pts">${p.pts||0} pts</span>
-            </div>
-          `).join('')}
-        </div>
-        <button class="btn btn-primary" onclick="showScreen('screen-landing')">Back to home</button>
+  await apiPost({ action:'update', pin:gamePin, patch:{ state:'gameover' } });
+  let g; try { g = await apiState(gamePin); } catch(e) { g = latestGame; }
+  const players = (g && g.players) || {};
+  const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  const winner = sorted[0] || { name: 'Nobody', pts: 0 };
+  stopPolling();
+  document.getElementById('host-main').innerHTML = `
+    <div class="gameover-card">
+      <div class="trophy">🏆</div>
+      <h2>${esc(winner.name)} wins!</h2>
+      <p class="winner-pts">${winner.pts} point${winner.pts!==1?'s':''}</p>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.5rem">
+        ${sorted.map((p,i)=>`
+          <div class="lb-row">
+            <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+            <span class="lb-name">${esc(p.name)}</span>
+            <span class="lb-pts">${p.pts||0} pts</span>
+          </div>
+        `).join('')}
       </div>
-    `;
-  });
+      <button class="btn btn-primary" onclick="showScreen('screen-landing')">Back to home</button>
+    </div>
+  `;
 }
 
 function endGame() {
   if (!confirm('End the game for everyone?')) return;
   clearInterval(timerInterval);
-  if(gameRef) gameRef.update({ state: 'gameover' });
+  if(gamePin) apiPost({ action:'update', pin:gamePin, patch:{ state:'gameover' } }).catch(()=>{});
+  stopPolling();
   showScreen('screen-landing');
 }
 
@@ -788,72 +647,85 @@ async function joinGame() {
   const name = document.getElementById('join-name').value.trim();
   const err = document.getElementById('join-error');
   err.style.display = 'none';
-
   if (!pin || pin.length < 4) { err.textContent = 'Please enter a valid PIN.'; err.style.display = ''; return; }
   if (!name) { err.textContent = 'Please enter your name.'; err.style.display = ''; return; }
-
-  // Resolve the Firebase URL: join link → saved value → built-in default → prompt.
-  let dbUrl = fbUrl;
-  if (!dbUrl) { try { dbUrl = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {} }
-  if (!dbUrl) { dbUrl = DEFAULT_FB_URL; }
-  if (!dbUrl) { dbUrl = prompt('Enter the Firebase database URL (ask your host):\n\nhttps://your-project-default-rtdb.firebaseio.com') || ''; }
-  if (!dbUrl || !dbUrl.includes('firebaseio.com')) { err.textContent = 'Invalid Firebase URL.'; err.style.display = ''; return; }
-
-  if (!initFirebase(dbUrl)) { err.textContent = 'Could not connect to Firebase.'; err.style.display = ''; return; }
-  try { localStorage.setItem(FB_URL_KEY, dbUrl); } catch(e) {}
-
-  gameRef = db.ref('games/' + pin);
-  const snap = await gameRef.once('value');
-  if (!snap.exists()) { err.textContent = 'Game not found. Check the PIN.'; err.style.display = ''; return; }
-
-  const game = snap.val();
-  if (game.state === 'gameover') { err.textContent = 'This game has already ended.'; err.style.display = ''; return; }
-
-  isHost = false;
-  myPlayerName = name;
-  gamePin = pin;
-
-  const playerRef = await gameRef.child('players').push({ name, pts: 0 });
-  myPlayerKey = playerRef.key;
-  playerRef.onDisconnect().remove();
-
-  showScreen('screen-player');
-  document.getElementById('player-name-display').textContent = name;
-  listenAsPlayer(game);
+  try {
+    const { playerId } = await apiPost({ action:'join', pin, name });
+    myPlayerId = playerId; myPlayerName = name; gamePin = pin; isHost = false;
+    lastQ = -1; lastHint = false; lastReveal = false; hasAnswered = false;
+    showScreen('screen-player');
+    document.getElementById('player-name-display').textContent = name;
+    startPlayerPolling();
+  } catch(e) {
+    err.textContent = e.message || 'Could not join.'; err.style.display = '';
+  }
 }
 
 // ══════════════════════════════════════════
-//  PLAYER LISTEN
+//  PLAYER POLLING
 // ══════════════════════════════════════════
-function listenAsPlayer(initialGame) {
-  let lastQIndex = initialGame.currentQ;
-  hasAnswered = false;
-
-  // Attach the leaderboard listener once (not on every question render).
-  if (!playersListenerAttached) {
-    playersListenerAttached = true;
-    gameRef.child('players').on('value', snap => { latestPlayers = snap.val() || {}; renderPlayerLeaderboard(); });
+function startPlayerPolling() { stopPolling(); refreshPlayer(); pollTimer = setInterval(refreshPlayer, 2000); }
+async function refreshPlayer() {
+  let g; try { g = await apiState(gamePin); } catch(e) { return; }
+  if (!g) return;
+  latestGame = g; latestPlayers = g.players || {};
+  if (g.settings) { ptsPerQ = g.settings.ptsPerQ || ptsPerQ; }
+  if (g.state === 'gameover') { stopPolling(); renderPlayerGameover(g); return; }
+  if (g.state === 'lobby') { renderPlayerWaiting('🎮', 'In the lobby', 'The host will start the game soon!'); lastQ = -1; return; }
+  const hint = !!g.hintRevealed, reveal = !!g.answerRevealed;
+  if (g.currentQ !== lastQ || hint !== lastHint || reveal !== lastReveal) {
+    if (g.currentQ !== lastQ) hasAnswered = false;
+    lastQ = g.currentQ; lastHint = hint; lastReveal = reveal;
+    renderPlayerQuestion(g);
+  } else {
+    renderPlayerLeaderboard();
   }
+}
 
-  if (initialGame.state === 'lobby') {
-    renderPlayerWaiting('🎮', 'In the lobby', 'The host will start the game soon!');
-  } else if (initialGame.state === 'playing') {
-    renderPlayerQuestion(initialGame, lastQIndex, hasAnswered);
+function renderPlayerWaiting(emoji, title, sub) {
+  document.getElementById('player-body').innerHTML = `
+    <div class="waiting-card">
+      <div class="big-emoji">${emoji}</div>
+      <h2>${esc(title)}</h2>
+      <p>${esc(sub)}</p>
+    </div>
+  `;
+}
+
+function renderPlayerQuestion(g) {
+  const qIdx = g.currentQ;
+  const qData = g.questions[qIdx];
+  if (!qData) return;
+  const hintVisible = !!g.hintRevealed;
+  const answerVisible = !!g.answerRevealed;
+  const myAns = (g.answers && g.answers[qIdx] && g.answers[qIdx][myPlayerId]) || null;
+  const submitted = !!myAns || hasAnswered;
+  const body = document.getElementById('player-body');
+  body.innerHTML = `
+    <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;text-align:right">Question ${qIdx+1} of ${g.questions.length}</p>
+    ${g.settings && g.settings.timerSecs > 0 ? `<div class="player-timer-bar"><div class="player-timer-fill" id="player-timer-bar" style="width:100%"></div></div>` : ''}
+    <div class="player-q-card">
+      <p class="player-q-text">${esc(qData.q)}</p>
+      ${qData.hint ? `<div class="player-hint-box ${hintVisible?'visible':''}" id="player-hint">💡 ${esc(qData.hint)}</div>` : ''}
+      <div class="player-answer-reveal ${answerVisible?'visible':''}" id="player-answer">👨 ${esc(g.answer||'')}</div>
+      <div class="player-result-msg" id="player-result-msg"></div>
+      <div class="guess-wrap" id="guess-wrap" style="${answerVisible||submitted?'display:none':''}">
+        <input class="guess-input" id="player-guess" type="text" placeholder="Type your answer…" maxlength="50" ${submitted?'disabled':''}>
+        <button class="btn btn-primary" onclick="submitGuess(${qIdx})" ${submitted?'disabled':''}>Submit</button>
+      </div>
+      <div class="submitted-msg ${submitted&&!answerVisible?'visible':''}" id="submitted-msg">✅ Answer submitted! Waiting for reveal…</div>
+    </div>
+    <div class="player-lb" id="player-lb"><h3>Leaderboard</h3></div>
+  `;
+  const inp = document.getElementById('player-guess');
+  if (inp) inp.addEventListener('keydown', e => { if(e.key==='Enter') submitGuess(qIdx); });
+
+  if (answerVisible && g.answer && myAns && myAns.guess) {
+    const correct = myAns.guess.trim().toLowerCase() === g.answer.trim().toLowerCase();
+    const msg = document.getElementById('player-result-msg');
+    if (msg) { msg.className = 'player-result-msg ' + (correct?'correct':'wrong'); msg.textContent = correct ? '🎉 Correct! Nice one.' : `❌ You said "${myAns.guess}" — the answer was ${g.answer}.`; }
   }
-
-  gameRef.on('value', snap => {
-    const game = snap.val();
-    if (!game) return;
-
-    if (game.state === 'gameover') { renderPlayerGameover(game); return; }
-    if (game.state === 'lobby') { renderPlayerWaiting('🎮', 'In the lobby', 'The host will start the game soon!'); return; }
-
-    if (game.currentQ !== lastQIndex) {
-      lastQIndex = game.currentQ;
-      hasAnswered = false;
-    }
-    renderPlayerQuestion(game, lastQIndex, hasAnswered);
-  });
+  renderPlayerLeaderboard();
 }
 
 function renderPlayerLeaderboard() {
@@ -863,67 +735,10 @@ function renderPlayerLeaderboard() {
   lb.innerHTML = `<h3>Leaderboard</h3>` + sorted.map((p,i)=>`
     <div class="lb-row">
       <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-      <span class="lb-name" style="${p.name===myPlayerName?'font-weight:600;color:var(--green-dark)':''}">${p.name}${p.name===myPlayerName?' (you)':''}</span>
+      <span class="lb-name" style="${p.name===myPlayerName?'font-weight:600;color:var(--green-dark)':''}">${esc(p.name)}${p.name===myPlayerName?' (you)':''}</span>
       <span class="lb-pts">${p.pts||0} pts</span>
     </div>
   `).join('');
-}
-
-function renderPlayerWaiting(emoji, title, sub) {
-  document.getElementById('player-body').innerHTML = `
-    <div class="waiting-card">
-      <div class="big-emoji">${emoji}</div>
-      <h2>${title}</h2>
-      <p>${sub}</p>
-    </div>
-  `;
-}
-
-function renderPlayerQuestion(game, qIdx, submitted, onSubmit) {
-  const qData = game.questions[qIdx];
-  if (!qData) return;
-  const body = document.getElementById('player-body');
-  const hintVisible = game.hintRevealed;
-  const answerVisible = game.answerRevealed;
-
-  body.innerHTML = `
-    <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;text-align:right">Question ${qIdx+1} of ${game.questions.length}</p>
-    ${game.settings && game.settings.timerSecs > 0 ? `<div class="player-timer-bar"><div class="player-timer-fill" id="player-timer-bar" style="width:100%"></div></div>` : ''}
-    <div class="player-q-card">
-      <p class="player-q-text">${qData.q}</p>
-      ${qData.hint ? `<div class="player-hint-box ${hintVisible?'visible':''}" id="player-hint">💡 ${qData.hint}</div>` : ''}
-      <div class="player-answer-reveal ${answerVisible?'visible':''}" id="player-answer">👨 ${game.answer||''}</div>
-      <div class="player-result-msg" id="player-result-msg"></div>
-      <div class="guess-wrap" id="guess-wrap" style="${answerVisible||submitted?'display:none':''}">
-        <input class="guess-input" id="player-guess" type="text" placeholder="Type your answer…" maxlength="50" ${submitted?'disabled':''}>
-        <button class="btn btn-primary" onclick="submitGuess(${qIdx})" ${submitted?'disabled':''}>Submit</button>
-      </div>
-      <div class="submitted-msg ${submitted?'visible':''}" id="submitted-msg">✅ Answer submitted! Waiting for reveal…</div>
-    </div>
-    <div class="player-lb" id="player-lb">
-      <h3>Leaderboard</h3>
-      <p style="font-size:13px;color:var(--gray-400)">Loading…</p>
-    </div>
-  `;
-
-  // Allow enter key to submit
-  const inp = document.getElementById('player-guess');
-  if (inp) inp.addEventListener('keydown', e => { if(e.key==='Enter') submitGuess(qIdx); });
-
-  // If answer revealed, check my answer
-  if (answerVisible && game.answer) {
-    gameRef.child('answers/' + qIdx + '/' + myPlayerKey).once('value', snap => {
-      const myAns = snap.val();
-      const msg = document.getElementById('player-result-msg');
-      if (myAns && myAns.guess) {
-        const correct = myAns.guess.trim().toLowerCase() === game.answer.trim().toLowerCase();
-        if (msg) { msg.className = 'player-result-msg ' + (correct?'correct':'wrong'); msg.textContent = correct ? '🎉 Correct! Nice one.' : `❌ You said "${myAns.guess}" — the answer was ${game.answer}.`; }
-      }
-    });
-  }
-
-  // Leaderboard (data comes from the single players listener in listenAsPlayer)
-  renderPlayerLeaderboard();
 }
 
 async function submitGuess(qIdx) {
@@ -931,31 +746,28 @@ async function submitGuess(qIdx) {
   if (!inp) return;
   const guess = inp.value.trim();
   if (!guess) return;
-
   hasAnswered = true;
-  await gameRef.child('answers/' + qIdx + '/' + myPlayerKey).set({ name: myPlayerName, guess });
-
   inp.disabled = true;
-  document.querySelector('.guess-wrap button').disabled = true;
-  document.getElementById('guess-wrap').style.display = 'none';
-  const sm = document.getElementById('submitted-msg');
-  if (sm) sm.classList.add('visible');
+  const btn = document.querySelector('.guess-wrap button'); if(btn) btn.disabled = true;
+  const gw = document.getElementById('guess-wrap'); if(gw) gw.style.display = 'none';
+  const sm = document.getElementById('submitted-msg'); if(sm) sm.classList.add('visible');
+  try { await apiPost({ action:'answer', pin:gamePin, qIdx, playerId:myPlayerId, name:myPlayerName, guess }); } catch(e) {}
 }
 
-function renderPlayerGameover(game) {
-  const players = game.players || {};
+function renderPlayerGameover(g) {
+  const players = g.players || {};
   const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
   const winner = sorted[0] || { name: 'Nobody', pts: 0 };
   document.getElementById('player-body').innerHTML = `
     <div class="gameover-card">
       <div class="trophy">🏆</div>
-      <h2>${winner.name} wins!</h2>
+      <h2>${esc(winner.name)} wins!</h2>
       <p class="winner-pts">${winner.pts} point${winner.pts!==1?'s':''}</p>
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.5rem;text-align:left">
         ${sorted.map((p,i)=>`
           <div class="lb-row">
             <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-            <span class="lb-name" style="${p.name===myPlayerName?'font-weight:600;color:var(--green-dark)':''}">${p.name}${p.name===myPlayerName?' (you)':''}</span>
+            <span class="lb-name" style="${p.name===myPlayerName?'font-weight:600;color:var(--green-dark)':''}">${esc(p.name)}${p.name===myPlayerName?' (you)':''}</span>
             <span class="lb-pts">${p.pts||0} pts</span>
           </div>
         `).join('')}
@@ -966,33 +778,21 @@ function renderPlayerGameover(game) {
 }
 
 // ══════════════════════════════════════════
-//  INIT — restore saved URL & handle join links
+//  INIT — handle ?#join=PIN links
 // ══════════════════════════════════════════
-function parseJoinHash() {
-  const h = location.hash.replace(/^#/, '');
-  if (!h) return null;
-  const params = new URLSearchParams(h);
-  if (!params.has('join')) return null;
-  return { pin: (params.get('join') || '').toUpperCase(), db: params.get('db') || '' };
-}
-
 window.addEventListener('DOMContentLoaded', () => {
-  let savedUrl = '';
-  try { savedUrl = localStorage.getItem(FB_URL_KEY) || ''; } catch(e) {}
-  if (!savedUrl) savedUrl = DEFAULT_FB_URL;   // works out of the box; override anytime
-
-  const join = parseJoinHash();
-  if (join) {
-    if (join.db) { savedUrl = join.db; try { localStorage.setItem(FB_URL_KEY, join.db); } catch(e) {} }
-    fbUrl = savedUrl || fbUrl;
-    document.getElementById('join-pin').value = join.pin;
-    document.getElementById('join-name').focus();
+  const launchBtn = document.getElementById('launch-btn');
+  if (launchBtn) launchBtn.disabled = false;
+  const h = location.hash.replace(/^#/, '');
+  if (h) {
+    const params = new URLSearchParams(h);
+    if (params.has('join')) {
+      document.getElementById('join-pin').value = (params.get('join') || '').toUpperCase();
+      document.getElementById('join-name').focus();
+    }
   }
-
-  // Pre-fill the host's Firebase URL field so it only has to be entered once.
-  const input = document.getElementById('firebase-url-input');
-  if (input && savedUrl) { input.value = savedUrl; testFirebase(); }
 });
+
 </script>
 </body>
 </html>
