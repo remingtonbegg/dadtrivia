@@ -37,7 +37,11 @@ async function snapshot(pin) {
   if (!meta) return null;
   const playersOut = {};
   for (const id of Object.keys(players || {})) {
-    playersOut[id] = { name: players[id], pts: Number((scores || {})[id] || 0) };
+    let pv = players[id];
+    let name = pv, joinedAt = 0;
+    if (typeof pv === 'string') { try { const o = JSON.parse(pv); if (o && typeof o === 'object') { name = o.name; joinedAt = o.joinedAt || 0; } } catch (e) { /* legacy plain name */ } }
+    else if (pv && typeof pv === 'object') { name = pv.name; joinedAt = pv.joinedAt || 0; }
+    playersOut[id] = { name, pts: Number((scores || {})[id] || 0), joinedAt };
   }
   const answers = {};
   for (const field of Object.keys(answersRaw || {})) {
@@ -95,7 +99,7 @@ export default async function handler(req, res) {
       if (!meta) return res.status(404).json({ error: 'Game not found. Check the PIN.' });
       if (meta.state === 'gameover') return res.status(409).json({ error: 'This game has already ended.' });
       const id = genId();
-      await redis.hset(k.players, { [id]: body.name || 'Player' });
+      await redis.hset(k.players, { [id]: JSON.stringify({ name: body.name || 'Player', joinedAt: Date.now() }) });
       await redis.hset(k.scores, { [id]: 0 });
       await Promise.all([redis.expire(k.players, TTL), redis.expire(k.scores, TTL)]);
       return res.status(200).json({ playerId: id });

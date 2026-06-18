@@ -514,6 +514,8 @@ async function hostRevealAnswer() {
   let g; try { g = await apiState(gamePin); } catch(e) { g = latestGame; }
   const ans = (g && g.answers && g.answers[currentQIndex]) || {};
   renderAnswersList(ans, true);
+  // Auto-award correct answers on reveal (host can still re-trigger via the button).
+  await hostAwardPoints();
 }
 
 async function hostAwardPoints() {
@@ -569,7 +571,7 @@ function startHostTimer() {
 function renderLeaderboard(players) {
   const lb = document.getElementById('host-leaderboard');
   if (!lb) return;
-  const sorted = Object.entries(players).map(([k,v]) => ({key:k, name:v.name, pts:v.pts||0})).sort((a,b)=>b.pts-a.pts);
+  const sorted = Object.entries(players).map(([k,v]) => ({key:k, name:v.name, pts:v.pts||0, joinedAt:v.joinedAt||0})).sort((a,b)=>(b.pts-a.pts)||(a.joinedAt-b.joinedAt));
   if (!sorted.length) { lb.innerHTML = '<p class="no-answers">No players yet</p>'; return; }
   lb.innerHTML = sorted.map((p,i) => `
     <div class="lb-row">
@@ -609,7 +611,7 @@ async function hostGameOver() {
   await apiPost({ action:'update', pin:gamePin, patch:{ state:'gameover' } });
   let g; try { g = await apiState(gamePin); } catch(e) { g = latestGame; }
   const players = (g && g.players) || {};
-  const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  const sorted = Object.values(players).sort((a,b)=>((b.pts||0)-(a.pts||0))||((a.joinedAt||0)-(b.joinedAt||0)));
   const winner = sorted[0] || { name: 'Nobody', pts: 0 };
   stopPolling();
   document.getElementById('host-main').innerHTML = `
@@ -731,7 +733,7 @@ function renderPlayerQuestion(g) {
 function renderPlayerLeaderboard() {
   const lb = document.getElementById('player-lb');
   if (!lb) return;
-  const sorted = Object.values(latestPlayers).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  const sorted = Object.values(latestPlayers).sort((a,b)=>((b.pts||0)-(a.pts||0))||((a.joinedAt||0)-(b.joinedAt||0)));
   lb.innerHTML = `<h3>Leaderboard</h3>` + sorted.map((p,i)=>`
     <div class="lb-row">
       <span class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
@@ -756,7 +758,7 @@ async function submitGuess(qIdx) {
 
 function renderPlayerGameover(g) {
   const players = g.players || {};
-  const sorted = Object.values(players).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  const sorted = Object.values(players).sort((a,b)=>((b.pts||0)-(a.pts||0))||((a.joinedAt||0)-(b.joinedAt||0)));
   const winner = sorted[0] || { name: 'Nobody', pts: 0 };
   document.getElementById('player-body').innerHTML = `
     <div class="gameover-card">
